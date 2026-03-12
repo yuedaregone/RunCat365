@@ -22,6 +22,7 @@ namespace RunCat365
         CPU,
         GPU,
         Memory,
+        TomatoClock,
     }
 
     internal static class SpeedSourceExtension
@@ -33,6 +34,7 @@ namespace RunCat365
                 SpeedSource.CPU => Strings.SystemInfo_CPU,
                 SpeedSource.GPU => Strings.SystemInfo_GPU,
                 SpeedSource.Memory => Strings.SystemInfo_Memory,
+                SpeedSource.TomatoClock => Strings.SystemInfo_TomatoClock,
                 _ => "",
             };
         }
@@ -44,6 +46,7 @@ namespace RunCat365
                 "CPU" => SpeedSource.CPU,
                 "GPU" => SpeedSource.GPU,
                 "Memory" => SpeedSource.Memory,
+                "TomatoClock" => SpeedSource.TomatoClock,
                 _ => null,
             };
 

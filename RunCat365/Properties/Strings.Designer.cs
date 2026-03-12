@@ -395,5 +395,14 @@ namespace RunCat365.Properties {
                 return ResourceManager.GetString("SystemInfo_Maximum", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Tomato Clock.
+        /// </summary>
+        internal static string SystemInfo_TomatoClock {
+            get {
+                return ResourceManager.GetString("SystemInfo_TomatoClock", resourceCulture);
+            }
+        }
     }
 }

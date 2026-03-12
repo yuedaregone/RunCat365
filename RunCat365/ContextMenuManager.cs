@@ -25,6 +25,9 @@ namespace RunCat365
         private readonly Lock iconLock = new();
         private int current = 0;
         private EndlessGameForm? endlessGameForm;
+        private bool tomatoClockCompleted = false;
+        private float tomatoClockRedIntensity = 0f;
+        private float lastRedIntensity = -1f; // Track last intensity to avoid unnecessary updates
 
         internal ContextMenuManager(
             Func<Runner> getRunner,
@@ -40,7 +43,13 @@ namespace RunCat365
             Func<bool> getLaunchAtStartup,
             Func<bool, bool> toggleLaunchAtStartup,
             Action openRepository,
-            Action onExit
+            Action onExit,
+            Func<int> getTomatoClockDuration,
+            Action<int> setTomatoClockDuration,
+            Func<bool> isTomatoClockRunning,
+            Action startTomatoClock,
+            Action pauseTomatoClock,
+            Action resetTomatoClock
         )
         {
             systemInfoMenu.Text = "-\n-\n-\n-\n-";
@@ -127,6 +136,39 @@ namespace RunCat365
                 launchAtStartupMenu
             );
 
+            // Tomato Clock Menu
+            var tomatoClockMenu = new CustomToolStripMenuItem("Tomato Clock");
+            
+            var tomatoClockStartMenu = new CustomToolStripMenuItem("Start");
+            tomatoClockStartMenu.Click += (sender, e) => startTomatoClock();
+            
+            var tomatoClockPauseMenu = new CustomToolStripMenuItem("Pause");
+            tomatoClockPauseMenu.Click += (sender, e) => pauseTomatoClock();
+            
+            var tomatoClockResetMenu = new CustomToolStripMenuItem("Reset");
+            tomatoClockResetMenu.Click += (sender, e) => resetTomatoClock();
+            
+            // Duration submenu
+            var tomatoClockDurationMenu = new CustomToolStripMenuItem("Duration (minutes)");
+            var durations = new[] { 15, 20, 25, 30, 45, 60 };
+            foreach (var duration in durations)
+            {
+                var durationItem = new CustomToolStripMenuItem($"{duration} min");
+                durationItem.Click += (sender, e) =>
+                {
+                    setTomatoClockDuration(duration);
+                };
+                tomatoClockDurationMenu.DropDownItems.Add(durationItem);
+            }
+
+            tomatoClockMenu.DropDownItems.AddRange(
+                tomatoClockStartMenu,
+                tomatoClockPauseMenu,
+                tomatoClockResetMenu,
+                new ToolStripSeparator(),
+                tomatoClockDurationMenu
+            );
+
             var endlessGameMenu = new CustomToolStripMenuItem(Strings.Menu_EndlessGame);
             endlessGameMenu.Click += (sender, e) => ShowOrActivateGameWindow(getSystemTheme);
 
@@ -156,6 +198,7 @@ namespace RunCat365
                 runnersMenu,
                 new ToolStripSeparator(),
                 settingsMenu,
+                tomatoClockMenu,
                 informationMenu,
                 endlessGameMenu,
                 new ToolStripSeparator(),
@@ -206,7 +249,26 @@ namespace RunCat365
         internal void SetIcons(Theme systemTheme, Theme manualTheme, Runner runner)
         {
             var theme = manualTheme == Theme.System ? systemTheme : manualTheme;
-            var color = theme.GetContrastColor();
+            var baseColor = theme.GetContrastColor();
+            
+            // Blend red color based on intensity
+            Color finalColor;
+            if (tomatoClockCompleted)
+            {
+                finalColor = Color.Red;
+            }
+            else if (tomatoClockRedIntensity > 0)
+            {
+                // Blend between base color and deep red
+                // Use deep red (dark red) instead of pure red for better visibility
+                Color deepRed = Color.FromArgb(180, 50, 50); // Deep red with some darkness
+                finalColor = BlendColors(baseColor, deepRed, tomatoClockRedIntensity);
+            }
+            else
+            {
+                finalColor = baseColor;
+            }
+            
             var runnerName = runner.GetString();
             var rm = Resources.ResourceManager;
             var capacity = runner.GetFrameNumber();
@@ -215,13 +277,13 @@ namespace RunCat365
             {
                 var iconName = $"{runnerName}_{i}".ToLower();
                 if (rm.GetObject(iconName) is not Bitmap bitmap) continue;
-                if (theme == Theme.Light)
+                if (theme == Theme.Light && tomatoClockRedIntensity == 0 && !tomatoClockCompleted)
                 {
                     list.Add(bitmap.ToIcon());
                 }
                 else
                 {
-                    using var recolored = bitmap.Recolor(color);
+                    using var recolored = bitmap.Recolor(finalColor);
                     list.Add(recolored.ToIcon());
                 }
             }
@@ -232,6 +294,58 @@ namespace RunCat365
                 icons.AddRange(list);
                 current = 0;
             }
+        }
+
+        private static Color BlendColors(Color color1, Color color2, float ratio)
+        {
+            // Clamp ratio to 0-1
+            ratio = Math.Clamp(ratio, 0f, 1f);
+            
+            // Linear interpolation between two colors
+            int r = (int)(color1.R * (1 - ratio) + color2.R * ratio);
+            int g = (int)(color1.G * (1 - ratio) + color2.G * ratio);
+            int b = (int)(color1.B * (1 - ratio) + color2.B * ratio);
+            
+            return Color.FromArgb(r, g, b);
+        }
+
+        internal void SetTomatoClockCompleted(bool completed)
+        {
+            tomatoClockCompleted = completed;
+            if (completed)
+            {
+                lastRedIntensity = 1.0f;
+            }
+        }
+
+        internal void SetTomatoClockRedIntensity(float intensity)
+        {
+            tomatoClockRedIntensity = intensity;
+        }
+
+        internal void ResetTomatoClockRedIntensity()
+        {
+            lastRedIntensity = -1f;
+            tomatoClockRedIntensity = 0f;
+        }
+
+        internal bool ShouldUpdateIcons()
+        {
+            // Check if we need to update icons based on red intensity change
+            if (tomatoClockCompleted)
+            {
+                return lastRedIntensity != 1.0f;
+            }
+            
+            float threshold = 0.05f; // Update if intensity changes by more than 5%
+            bool shouldUpdate = Math.Abs(tomatoClockRedIntensity - lastRedIntensity) > threshold;
+            
+            if (shouldUpdate)
+            {
+                lastRedIntensity = tomatoClockRedIntensity;
+            }
+            
+            return shouldUpdate;
         }
 
         private static void HandleStartupMenuClick(object? sender, Func<bool, bool> toggleLaunchAtStartup)

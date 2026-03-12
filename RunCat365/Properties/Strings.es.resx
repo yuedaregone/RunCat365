@@ -219,6 +219,9 @@
   <data name="SystemInfo_Network" xml:space="preserve">
     <value>Red</value>
   </data>
+  <data name="SystemInfo_TomatoClock" xml:space="preserve">
+    <value>Reloj de Tomate</value>
+  </data>
   <data name="SystemInfo_Sent" xml:space="preserve">
     <value>Enviado</value>
   </data>

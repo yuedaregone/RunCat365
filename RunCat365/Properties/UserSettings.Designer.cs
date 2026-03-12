@@ -94,5 +94,17 @@ namespace RunCat365.Properties {
                 this["SpeedSource"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("25")]
+        public int TomatoClockDuration {
+            get {
+                return ((int)(this["TomatoClockDuration"]));
+            }
+            set {
+                this["TomatoClockDuration"] = value;
+            }
+        }
     }
 }

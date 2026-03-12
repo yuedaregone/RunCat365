@@ -69,6 +69,8 @@ namespace RunCat365
         private FPSMaxLimit fpsMaxLimit = FPSMaxLimit.FPS40;
         private SpeedSource speedSource = SpeedSource.CPU;
         private int fetchCounter = 5;
+        private readonly TomatoClock tomatoClock;
+        private int tomatoClockDuration = 25;
 
         public RunCat365ApplicationContext()
         {
@@ -77,6 +79,12 @@ namespace RunCat365
             _ = Enum.TryParse(UserSettings.Default.Theme, out manualTheme);
             _ = Enum.TryParse(UserSettings.Default.FPSMaxLimit, out fpsMaxLimit);
             _ = Enum.TryParse(UserSettings.Default.SpeedSource, out speedSource);
+            
+            // Load tomato clock duration
+            if (UserSettings.Default.TomatoClockDuration > 0)
+            {
+                tomatoClockDuration = UserSettings.Default.TomatoClockDuration;
+            }
 
             SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(UserPreferenceChanged);
 
@@ -86,6 +94,11 @@ namespace RunCat365
             storageRepository = new StorageRepository();
             networkRepository = new NetworkRepository();
             launchAtStartupManager = new LaunchAtStartupManager();
+            
+            tomatoClock = new TomatoClock();
+            tomatoClock.SetDuration(tomatoClockDuration);
+            tomatoClock.Tick += TomatoClock_Tick;
+            tomatoClock.Completed += TomatoClock_Completed;
 
             ResolveSpeedSource();
 
@@ -103,7 +116,13 @@ namespace RunCat365
                 () => launchAtStartupManager.GetStartup(),
                 s => launchAtStartupManager.SetStartup(s),
                 () => OpenRepository(),
-                () => Application.Exit()
+                () => Application.Exit(),
+                () => tomatoClockDuration,
+                d => ChangeTomatoClockDuration(d),
+                () => tomatoClock.IsRunning,
+                StartTomatoClock,
+                PauseTomatoClock,
+                ResetTomatoClock
             );
 
             animateTimer = new FormsTimer
@@ -140,6 +159,7 @@ namespace RunCat365
                 SpeedSource.CPU => true,
                 SpeedSource.GPU => gpuRepository.IsAvailable,
                 SpeedSource.Memory => true,
+                SpeedSource.TomatoClock => true,
                 _ => false,
             };
         }
@@ -219,9 +239,58 @@ namespace RunCat365
             UserSettings.Default.Save();
         }
 
+        private void ChangeTomatoClockDuration(int duration)
+        {
+            tomatoClockDuration = duration;
+            tomatoClock.SetDuration(duration);
+            UserSettings.Default.TomatoClockDuration = duration;
+            UserSettings.Default.Save();
+        }
+
         private void AnimationTick(object? sender, EventArgs e)
         {
             contextMenuManager.AdvanceFrame();
+        }
+
+        private void TomatoClock_Tick(object? sender, EventArgs e)
+        {
+            if (speedSource == SpeedSource.TomatoClock)
+            {
+                FetchSystemInfo();
+            }
+        }
+
+        private void StartTomatoClock()
+        {
+            contextMenuManager.SetTomatoClockCompleted(false);
+            contextMenuManager.ResetTomatoClockRedIntensity();
+            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            tomatoClock.Start();
+        }
+
+        private void PauseTomatoClock()
+        {
+            tomatoClock.Pause();
+        }
+
+        private void ResetTomatoClock()
+        {
+            contextMenuManager.SetTomatoClockCompleted(false);
+            contextMenuManager.ResetTomatoClockRedIntensity();
+            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            tomatoClock.Reset();
+        }
+
+        private void TomatoClock_Completed(object? sender, EventArgs e)
+        {
+            // Change icon color to red when tomato clock completes
+            contextMenuManager.SetTomatoClockCompleted(true);
+            
+            // Refresh icons with red color
+            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            
+            // Show notification
+            contextMenuManager.ShowBalloonTip(BalloonTipType.AppLaunched); // Reuse existing balloon tip
         }
 
         private string GetInfoDescription(CPUInfo cpuInfo, GPUInfo? gpuInfo, MemoryInfo memoryInfo)
@@ -231,8 +300,21 @@ namespace RunCat365
                 SpeedSource.CPU => cpuInfo.GetDescription(),
                 SpeedSource.GPU => gpuInfo?.GetDescription() ?? "",
                 SpeedSource.Memory => memoryInfo.GetDescription(),
+                SpeedSource.TomatoClock => GetTomatoClockDescription(),
                 _ => "",
             };
+        }
+
+        private string GetTomatoClockDescription()
+        {
+            if (tomatoClock.IsCompleted)
+            {
+                return $"{Strings.SystemInfo_TomatoClock}: Complete!";
+            }
+            
+            var remainingMinutes = tomatoClock.RemainingSeconds / 60;
+            var remainingSeconds = tomatoClock.RemainingSeconds % 60;
+            return $"{Strings.SystemInfo_TomatoClock}: {remainingMinutes:D2}:{remainingSeconds:D2}";
         }
 
         private int CalculateInterval(CPUInfo cpuInfo, GPUInfo? gpuInfo, MemoryInfo memoryInfo)
@@ -242,10 +324,26 @@ namespace RunCat365
                 SpeedSource.CPU => cpuInfo.Total,
                 SpeedSource.GPU => gpuInfo?.Maximum ?? 0f,
                 SpeedSource.Memory => memoryInfo.MemoryLoad,
+                SpeedSource.TomatoClock => tomatoClock.GetProgress() * 100f,
                 _ => 0f,
             };
-            var speed = (float)Math.Max(1.0f, (load / 5.0f) * fpsMaxLimit.GetRate());
-            return (int)(500.0f / speed);
+            
+            if (speedSource == SpeedSource.TomatoClock)
+            {
+                // Uniform speed increase: linear interpolation from 500ms to 25ms
+                // progress = 0 -> interval = 500ms (slowest)
+                // progress = 1 -> interval = 25ms (fastest)
+                float progress = tomatoClock.GetProgress();
+                float minInterval = 25f;
+                float maxInterval = 500f;
+                float interval = maxInterval - (progress * (maxInterval - minInterval));
+                return (int)interval;
+            }
+            else
+            {
+                var speed = (float)Math.Max(1.0f, (load / 5.0f) * fpsMaxLimit.GetRate());
+                return (int)(500.0f / speed);
+            }
         }
 
         private int FetchSystemInfo()
@@ -259,14 +357,39 @@ namespace RunCat365
             contextMenuManager.SetNotifyIconText(GetInfoDescription(cpuInfo, gpuInfo, memoryInfo));
 
             var systemInfoValues = new List<string>();
-            systemInfoValues.AddRange(cpuInfo.GenerateIndicator());
-            if (gpuInfo.HasValue)
+            
+            if (speedSource == SpeedSource.TomatoClock)
             {
-                systemInfoValues.AddRange(gpuInfo.Value.GenerateIndicator());
+                // Show tomato clock info instead of system info
+                systemInfoValues.Add(GetTomatoClockDescription());
+                if (tomatoClock.IsRunning)
+                {
+                    systemInfoValues.Add($"Progress: {tomatoClock.GetProgress():P0}");
+                }
+                
+                // Update red intensity based on tomato clock progress
+                float redIntensity = tomatoClock.GetRedIntensity();
+                contextMenuManager.SetTomatoClockRedIntensity(redIntensity);
+                
+                // Refresh icons only when intensity changes significantly
+                // This ensures the color transition is smooth but efficient
+                if (contextMenuManager.ShouldUpdateIcons())
+                {
+                    contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+                }
             }
-            systemInfoValues.AddRange(memoryInfo.GenerateIndicator());
-            systemInfoValues.AddRange(storageInfo.GenerateIndicator());
-            systemInfoValues.AddRange(networkInfo.GenerateIndicator());
+            else
+            {
+                systemInfoValues.AddRange(cpuInfo.GenerateIndicator());
+                if (gpuInfo.HasValue)
+                {
+                    systemInfoValues.AddRange(gpuInfo.Value.GenerateIndicator());
+                }
+                systemInfoValues.AddRange(memoryInfo.GenerateIndicator());
+                systemInfoValues.AddRange(storageInfo.GenerateIndicator());
+                systemInfoValues.AddRange(networkInfo.GenerateIndicator());
+            }
+            
             contextMenuManager.SetSystemInfoMenuText(string.Join("\n", [.. systemInfoValues]));
 
             return CalculateInterval(cpuInfo, gpuInfo, memoryInfo);
