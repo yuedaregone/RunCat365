@@ -19,9 +19,6 @@ namespace RunCat365
 {
     enum SpeedSource
     {
-        CPU,
-        GPU,
-        Memory,
         TomatoClock,
     }
 
@@ -31,9 +28,6 @@ namespace RunCat365
         {
             return speedSource switch
             {
-                SpeedSource.CPU => Strings.SystemInfo_CPU,
-                SpeedSource.GPU => Strings.SystemInfo_GPU,
-                SpeedSource.Memory => Strings.SystemInfo_Memory,
                 SpeedSource.TomatoClock => Strings.SystemInfo_TomatoClock,
                 _ => "",
             };
@@ -43,9 +37,6 @@ namespace RunCat365
         {
             SpeedSource? nullableResult = value switch
             {
-                "CPU" => SpeedSource.CPU,
-                "GPU" => SpeedSource.GPU,
-                "Memory" => SpeedSource.Memory,
                 "TomatoClock" => SpeedSource.TomatoClock,
                 _ => null,
             };
@@ -57,7 +48,7 @@ namespace RunCat365
             }
             else
             {
-                result = SpeedSource.CPU;
+                result = SpeedSource.TomatoClock;
                 return false;
             }
         }

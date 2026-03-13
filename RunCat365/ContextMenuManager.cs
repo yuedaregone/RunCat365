@@ -24,10 +24,10 @@ namespace RunCat365
         private readonly List<Icon> icons = [];
         private readonly Lock iconLock = new();
         private int current = 0;
-        private EndlessGameForm? endlessGameForm;
         private bool tomatoClockCompleted = false;
-        private float tomatoClockRedIntensity = 0f;
-        private float lastRedIntensity = -1f; // Track last intensity to avoid unnecessary updates
+        private float tomatoClockProgress = 0f;
+        private float lastProgress = -1f; // Track last progress to avoid unnecessary updates
+        private EndlessGameForm? endlessGameForm;
 
         internal ContextMenuManager(
             Func<Runner> getRunner,
@@ -35,14 +35,8 @@ namespace RunCat365
             Func<Theme> getSystemTheme,
             Func<Theme> getManualTheme,
             Action<Theme> setManualTheme,
-            Func<SpeedSource> getSpeedSource,
-            Action<SpeedSource> setSpeedSource,
-            Func<SpeedSource, bool> isSpeedSourceAvailable,
-            Func<FPSMaxLimit> getFPSMaxLimit,
-            Action<FPSMaxLimit> setFPSMaxLimit,
             Func<bool> getLaunchAtStartup,
             Func<bool, bool> toggleLaunchAtStartup,
-            Action openRepository,
             Action onExit,
             Func<int> getTomatoClockDuration,
             Action<int> setTomatoClockDuration,
@@ -89,39 +83,6 @@ namespace RunCat365
                 _ => null
             );
 
-            var speedSourceMenu = new CustomToolStripMenuItem(Strings.Menu_SpeedSource);
-            speedSourceMenu.SetupSubMenusFromEnum<SpeedSource>(
-                s => s.GetLocalizedString(),
-                (parent, sender, e) =>
-                {
-                    HandleMenuItemSelection<SpeedSource>(
-                        parent,
-                        sender,
-                        (string? s, out SpeedSource ss) => Enum.TryParse(s, out ss),
-                        s => setSpeedSource(s)
-                    );
-                },
-                s => getSpeedSource() == s,
-                _ => null,
-                isSpeedSourceAvailable
-            );
-
-            var fpsMaxLimitMenu = new CustomToolStripMenuItem(Strings.Menu_FPSMaxLimit);
-            fpsMaxLimitMenu.SetupSubMenusFromEnum<FPSMaxLimit>(
-                f => f.GetString(),
-                (parent, sender, e) =>
-                {
-                    HandleMenuItemSelection<FPSMaxLimit>(
-                        parent,
-                        sender,
-                        (string? s, out FPSMaxLimit f) => FPSMaxLimitExtension.TryParse(s, out f),
-                        f => setFPSMaxLimit(f)
-                    );
-                },
-                f => getFPSMaxLimit() == f,
-                _ => null
-            );
-
             var launchAtStartupMenu = new CustomToolStripMenuItem(Strings.Menu_LaunchAtStartup)
             {
                 Checked = getLaunchAtStartup()
@@ -131,8 +92,6 @@ namespace RunCat365
             var settingsMenu = new CustomToolStripMenuItem(Strings.Menu_Settings);
             settingsMenu.DropDownItems.AddRange(
                 themeMenu,
-                speedSourceMenu,
-                fpsMaxLimitMenu,
                 launchAtStartupMenu
             );
 
@@ -169,25 +128,6 @@ namespace RunCat365
                 tomatoClockDurationMenu
             );
 
-            var endlessGameMenu = new CustomToolStripMenuItem(Strings.Menu_EndlessGame);
-            endlessGameMenu.Click += (sender, e) => ShowOrActivateGameWindow(getSystemTheme);
-
-            var appVersionMenu = new CustomToolStripMenuItem(
-                $"{Application.ProductName} v{Application.ProductVersion}"
-            )
-            {
-                Enabled = false
-            };
-
-            var repositoryMenu = new CustomToolStripMenuItem(Strings.Menu_OpenRepository);
-            repositoryMenu.Click += (sender, e) => openRepository();
-
-            var informationMenu = new CustomToolStripMenuItem(Strings.Menu_Information);
-            informationMenu.DropDownItems.AddRange(
-                appVersionMenu,
-                repositoryMenu
-            );
-
             var exitMenu = new CustomToolStripMenuItem(Strings.Menu_Exit);
             exitMenu.Click += (sender, e) => onExit();
 
@@ -199,8 +139,6 @@ namespace RunCat365
                 new ToolStripSeparator(),
                 settingsMenu,
                 tomatoClockMenu,
-                informationMenu,
-                endlessGameMenu,
                 new ToolStripSeparator(),
                 exitMenu
             );
@@ -249,26 +187,19 @@ namespace RunCat365
         internal void SetIcons(Theme systemTheme, Theme manualTheme, Runner runner)
         {
             var theme = manualTheme == Theme.System ? systemTheme : manualTheme;
-            var baseColor = theme.GetContrastColor();
+             
+            // Calculate color based on tomato clock progress using HSV
+            // Hue: blue (240°) at start -> red (0°/360°) at end
+            // Saturation and Value: use lighter values for subtle overlay
+            float hue = 240f * (1f - tomatoClockProgress); // 240° at progress=0, 0° at progress=1
+            // Clamp hue to [0, 360)
+            if (hue < 0f) hue += 360f;
             
-            // Blend red color based on intensity
-            Color finalColor;
-            if (tomatoClockCompleted)
-            {
-                finalColor = Color.Red;
-            }
-            else if (tomatoClockRedIntensity > 0)
-            {
-                // Blend between base color and deep red
-                // Use deep red (dark red) instead of pure red for better visibility
-                Color deepRed = Color.FromArgb(180, 50, 50); // Deep red with some darkness
-                finalColor = BlendColors(baseColor, deepRed, tomatoClockRedIntensity);
-            }
-            else
-            {
-                finalColor = baseColor;
-            }
-            
+            // Use lighter saturation and value for subtle color overlay
+            float saturation = 0.3f;
+            float value = 0.9f;
+            Color finalColor = HsvToRgb(hue, saturation, value);
+             
             var runnerName = runner.GetString();
             var rm = Resources.ResourceManager;
             var capacity = runner.GetFrameNumber();
@@ -277,7 +208,7 @@ namespace RunCat365
             {
                 var iconName = $"{runnerName}_{i}".ToLower();
                 if (rm.GetObject(iconName) is not Bitmap bitmap) continue;
-                if (theme == Theme.Light && tomatoClockRedIntensity == 0 && !tomatoClockCompleted)
+                if (theme == Theme.Light && tomatoClockProgress == 0f && !tomatoClockCompleted)
                 {
                     list.Add(bitmap.ToIcon());
                 }
@@ -287,7 +218,7 @@ namespace RunCat365
                     list.Add(recolored.ToIcon());
                 }
             }
-
+ 
             lock (iconLock)
             {
                 icons.Clear();
@@ -308,43 +239,107 @@ namespace RunCat365
             
             return Color.FromArgb(r, g, b);
         }
+        
+        /// <summary>
+        /// Converts HSV color to RGB color.
+        /// H: hue [0, 360)
+        /// S: saturation [0, 1]
+        /// V: value [0, 1]
+        /// Returns Color with alpha=255
+        /// </summary>
+        private static Color HsvToRgb(float h, float s, float v)
+        {
+            // Clamp values
+            h = Math.Clamp(h, 0f, 360f);
+            s = Math.Clamp(s, 0f, 1f);
+            v = Math.Clamp(v, 0f, 1f);
+            
+            float c = v * s; // Chroma
+            float hPrime = h / 60f; // Hue sector
+            float x = c * (1f - Math.Abs((hPrime % 2f) - 1f));
+            float m = v - c;
+            
+            float rPrime, gPrime, bPrime;
+            if (hPrime >= 0 && hPrime < 1)
+            {
+                rPrime = c;
+                gPrime = x;
+                bPrime = 0f;
+            }
+            else if (hPrime >= 1 && hPrime < 2)
+            {
+                rPrime = x;
+                gPrime = c;
+                bPrime = 0f;
+            }
+            else if (hPrime >= 2 && hPrime < 3)
+            {
+                rPrime = 0f;
+                gPrime = c;
+                bPrime = x;
+            }
+            else if (hPrime >= 3 && hPrime < 4)
+            {
+                rPrime = 0f;
+                gPrime = x;
+                bPrime = c;
+            }
+            else if (hPrime >= 4 && hPrime < 5)
+            {
+                rPrime = x;
+                gPrime = 0f;
+                bPrime = c;
+            }
+            else // hPrime >= 5 && hPrime < 6
+            {
+                rPrime = c;
+                gPrime = 0f;
+                bPrime = x;
+            }
+            
+            int r = (int)((rPrime + m) * 255f);
+            int g = (int)((gPrime + m) * 255f);
+            int b = (int)((bPrime + m) * 255f);
+            
+            return Color.FromArgb(r, g, b);
+        }
 
         internal void SetTomatoClockCompleted(bool completed)
         {
             tomatoClockCompleted = completed;
             if (completed)
             {
-                lastRedIntensity = 1.0f;
+                lastProgress = 1.0f;
             }
         }
 
         internal void SetTomatoClockRedIntensity(float intensity)
         {
-            tomatoClockRedIntensity = intensity;
+            tomatoClockProgress = intensity;
         }
 
         internal void ResetTomatoClockRedIntensity()
         {
-            lastRedIntensity = -1f;
-            tomatoClockRedIntensity = 0f;
+            lastProgress = -1f;
+            tomatoClockProgress = 0f;
         }
 
         internal bool ShouldUpdateIcons()
         {
-            // Check if we need to update icons based on red intensity change
+            // Check if we need to update icons based on progress change
             if (tomatoClockCompleted)
             {
-                return lastRedIntensity != 1.0f;
+                return lastProgress != 1.0f;
             }
-            
-            float threshold = 0.05f; // Update if intensity changes by more than 5%
-            bool shouldUpdate = Math.Abs(tomatoClockRedIntensity - lastRedIntensity) > threshold;
-            
+             
+            float threshold = 0.05f; // Update if progress changes by more than 5%
+            bool shouldUpdate = Math.Abs(tomatoClockProgress - lastProgress) > threshold;
+             
             if (shouldUpdate)
             {
-                lastRedIntensity = tomatoClockRedIntensity;
+                lastProgress = tomatoClockProgress;
             }
-            
+             
             return shouldUpdate;
         }
 

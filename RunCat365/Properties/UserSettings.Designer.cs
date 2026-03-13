@@ -85,18 +85,6 @@ namespace RunCat365.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("CPU")]
-        public string SpeedSource {
-            get {
-                return ((string)(this["SpeedSource"]));
-            }
-            set {
-                this["SpeedSource"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("25")]
         public int TomatoClockDuration {
             get {
