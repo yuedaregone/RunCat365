@@ -5,6 +5,7 @@
     <TargetFramework>net9.0-windows10.0.26100.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <AssemblyName>RunCat 365</AssemblyName>
@@ -27,6 +28,18 @@
     <NoWarn>$(NoWarn);WFO5001</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="CPURepository.cs" />
+    <Compile Remove="EndlessGameForm.cs" />
+    <Compile Remove="FPSMaxLimit.cs" />
+    <Compile Remove="MemoryRepository.cs" />
+    <Compile Remove="NetworkRepository.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="EndlessGameForm.resx" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="resources\app_icon.ico" />

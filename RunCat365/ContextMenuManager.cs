@@ -14,6 +14,7 @@
 
 using RunCat365.Properties;
 using System.ComponentModel;
+using System.IO;
 
 namespace RunCat365
 {
@@ -27,7 +28,6 @@ namespace RunCat365
         private bool tomatoClockCompleted = false;
         private float tomatoClockProgress = 0f;
         private float lastProgress = -1f; // Track last progress to avoid unnecessary updates
-        private EndlessGameForm? endlessGameForm;
 
         internal ContextMenuManager(
             Func<Runner> getRunner,
@@ -146,6 +146,10 @@ namespace RunCat365
 
             SetIcons(getSystemTheme(), getManualTheme(), getRunner());
 
+            // Set static tray icon from application icon
+            var exePath = Environment.ProcessPath ?? AppDomain.CurrentDomain.BaseDirectory;
+            notifyIcon.Icon = Icon.ExtractAssociatedIcon(exePath);
+
             notifyIcon.Visible = true;
             notifyIcon.ContextMenuStrip = contextMenuStrip;
         }
@@ -177,11 +181,10 @@ namespace RunCat365
 
         private static Bitmap? GetRunnerThumbnailBitmap(Theme systemTheme, Runner runner)
         {
-            var color = systemTheme.GetContrastColor();
             var iconName = $"{runner.GetString()}_0".ToLower();
             var obj = Resources.ResourceManager.GetObject(iconName);
             if (obj is not Bitmap bitmap) return null;
-            return systemTheme == Theme.Light ? bitmap : bitmap.Recolor(color);
+            return systemTheme == Theme.Light ? bitmap.Recolor(Color.Black) : bitmap;
         }
 
         internal void SetIcons(Theme systemTheme, Theme manualTheme, Runner runner)
@@ -359,29 +362,21 @@ namespace RunCat365
                 MessageBox.Show(ex.Message, Strings.Message_Warning, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
-        }
-
-        private void ShowOrActivateGameWindow(Func<Theme> getSystemTheme)
-        {
-            if (endlessGameForm is null)
-            {
-                endlessGameForm = new EndlessGameForm(getSystemTheme());
-                endlessGameForm.FormClosed += (sender, e) =>
-                {
-                    endlessGameForm = null;
-                };
-                endlessGameForm.Show();
-            }
-            else
-            {
-                endlessGameForm.Activate();
-            }
-        }
+        }      
 
         internal void ShowBalloonTip(BalloonTipType balloonTipType)
         {
             var info = balloonTipType.GetInfo();
             notifyIcon.ShowBalloonTip(5000, info.Title, info.Text, info.Icon);
+        }
+
+        internal Icon? GetCurrentIcon()
+        {
+            lock (iconLock)
+            {
+                if (icons.Count == 0) return null;
+                return icons[current];
+            }
         }
 
         internal void AdvanceFrame()
@@ -390,7 +385,6 @@ namespace RunCat365
             {
                 if (icons.Count == 0) return;
                 if (icons.Count <= current) current = 0;
-                notifyIcon.Icon = icons[current];
                 current = (current + 1) % icons.Count;
             }
         }
@@ -430,8 +424,6 @@ namespace RunCat365
                     notifyIcon.ContextMenuStrip?.Dispose();
                     notifyIcon.Dispose();
                 }
-
-                endlessGameForm?.Dispose();
             }
         }
 

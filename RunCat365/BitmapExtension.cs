@@ -13,6 +13,7 @@
 //    limitations under the License.
 
 using System.Drawing.Imaging;
+using System.IO;
 
 namespace RunCat365
 {
