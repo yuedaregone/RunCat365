@@ -79,20 +79,7 @@ namespace RunCat365
             if (totalSeconds == 0) return 1f;
             return 1f - ((float)remainingSeconds / totalSeconds);
         }
-
-        public float GetRemainingMinutes()
-        {
-            return (float)remainingSeconds / 60f;
-        }
-
-        public float GetRedIntensity()
-        {
-            // Red intensity increases in the last 5 minutes
-            // 0 = no red, 1 = full red
-            float remainingMinutes = GetRemainingMinutes();
-            if (remainingMinutes > 5f) return 0f;
-            return Math.Clamp(1f - (remainingMinutes / 5f), 0f, 1f);
-        }
+      
 
         private void Timer_Tick(object? sender, EventArgs e)
         {

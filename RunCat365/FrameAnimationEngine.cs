@@ -29,6 +29,11 @@ namespace RunCat365
         private DateTime _lastFrameTime = DateTime.MinValue;
         private bool _isRunning;
 
+        private DateTime _tomatoClockStartTime;
+        private TimeSpan _tomatoClockDuration = TimeSpan.FromMinutes(25);
+        private bool _isTomatoClockActive;
+        private double _pausedProgress;
+
         public event EventHandler<int>? FrameChanged;
 
         public BitmapSource? Spritesheet => _spritesheet;
@@ -53,6 +58,24 @@ namespace RunCat365
             _intervalMs = maxInterval - (progress * (maxInterval - minInterval));
         }
 
+        public void SetTomatoClockState(DateTime startTime, TimeSpan duration, bool isRunning)
+        {
+            _tomatoClockStartTime = startTime;
+            _tomatoClockDuration = duration;
+            _isTomatoClockActive = isRunning;
+            if (!isRunning)
+            {
+                var elapsed = (DateTime.Now - _tomatoClockStartTime).TotalSeconds;
+                _pausedProgress = Math.Min(1.0, elapsed / _tomatoClockDuration.TotalSeconds);
+            }
+        }
+
+        public void AdjustTomatoClockStartTime()
+        {
+            var currentProgress = Math.Min(1.0, (DateTime.Now - _tomatoClockStartTime).TotalSeconds / _tomatoClockDuration.TotalSeconds);
+            _tomatoClockStartTime = DateTime.Now - TimeSpan.FromSeconds(currentProgress * _tomatoClockDuration.TotalSeconds);
+        }
+
         public void Start()
         {
             if (_isRunning) return;
@@ -75,6 +98,18 @@ namespace RunCat365
         private void OnRendering(object? sender, EventArgs e)
         {
             if (!_isRunning || _spritesheet is null) return;
+
+            double progress;
+            if (_isTomatoClockActive)
+            {
+                var elapsed = (DateTime.Now - _tomatoClockStartTime).TotalSeconds;
+                progress = Math.Min(1.0, elapsed / _tomatoClockDuration.TotalSeconds);
+            }
+            else
+            {
+                progress = _pausedProgress;
+            }
+            _intervalMs = 500 - (progress * 475);
 
             var now = DateTime.Now;
             if ((now - _lastFrameTime).TotalMilliseconds < _intervalMs) return;
