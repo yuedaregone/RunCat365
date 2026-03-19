@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Takuto Nakamura
+// Copyright 2025 Takuto Nakamura
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -14,7 +14,11 @@
 
 using RunCat365.Properties;
 using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Windows;
+using System.Windows.Media.Imaging;
 
 namespace RunCat365
 {
@@ -22,12 +26,14 @@ namespace RunCat365
     {
         private readonly CustomToolStripMenuItem systemInfoMenu = new();
         private readonly NotifyIcon notifyIcon = new();
-        private readonly List<Icon> icons = [];
-        private readonly Lock iconLock = new();
-        private int current = 0;
+        private readonly List<Icon> trayIcons = [];
+        private readonly Lock trayIconLock = new();
+        private int currentTrayIcon = 0;
         private bool tomatoClockCompleted = false;
         private float tomatoClockProgress = 0f;
-        private float lastProgress = -1f; // Track last progress to avoid unnecessary updates
+        private float lastProgress = -1f;
+        private Runner currentRunner = Runner.Cat;
+        private Theme currentTheme = Theme.Light;
 
         internal ContextMenuManager(
             Func<Runner> getRunner,
@@ -60,7 +66,7 @@ namespace RunCat365
                         (string? s, out Runner r) => Enum.TryParse(s, out r),
                         r => setRunner(r)
                     );
-                    SetIcons(getSystemTheme(), getManualTheme(), getRunner());
+                    SetTrayIcons(getSystemTheme(), getManualTheme(), getRunner());
                 },
                 r => getRunner() == r,
                 r => GetRunnerThumbnailBitmap(getSystemTheme(), r)
@@ -77,7 +83,7 @@ namespace RunCat365
                         (string? s, out Theme t) => Enum.TryParse(s, out t),
                         t => setManualTheme(t)
                     );
-                    SetIcons(getSystemTheme(), getManualTheme(), getRunner());
+                    SetTrayIcons(getSystemTheme(), getManualTheme(), getRunner());
                 },
                 t => getManualTheme() == t,
                 _ => null
@@ -95,7 +101,6 @@ namespace RunCat365
                 launchAtStartupMenu
             );
 
-            // Tomato Clock Menu
             var tomatoClockMenu = new CustomToolStripMenuItem("Tomato Clock");
             
             var tomatoClockStartMenu = new CustomToolStripMenuItem("Start");
@@ -107,7 +112,6 @@ namespace RunCat365
             var tomatoClockResetMenu = new CustomToolStripMenuItem("Reset");
             tomatoClockResetMenu.Click += (sender, e) => resetTomatoClock();
             
-            // Duration submenu
             var tomatoClockDurationMenu = new CustomToolStripMenuItem("Duration (minutes)");
             var durations = new[] { 15, 20, 25, 30, 45, 60 };
             foreach (var duration in durations)
@@ -144,9 +148,8 @@ namespace RunCat365
             );
             contextMenuStrip.Renderer = new ContextMenuRenderer();
 
-            SetIcons(getSystemTheme(), getManualTheme(), getRunner());
+            SetTrayIcons(getSystemTheme(), getManualTheme(), getRunner());
 
-            // Set static tray icon from application icon
             var exePath = Environment.ProcessPath ?? AppDomain.CurrentDomain.BaseDirectory;
             notifyIcon.Icon = Icon.ExtractAssociatedIcon(exePath);
 
@@ -184,127 +187,234 @@ namespace RunCat365
             var iconName = $"{runner.GetString()}_0".ToLower();
             var obj = Resources.ResourceManager.GetObject(iconName);
             if (obj is not Bitmap bitmap) return null;
-            return systemTheme == Theme.Light ? bitmap.Recolor(Color.Black) : bitmap;
+            return systemTheme == Theme.Light ? RecolorBitmap(bitmap, Color.Black) : bitmap;
         }
 
-        internal void SetIcons(Theme systemTheme, Theme manualTheme, Runner runner)
+        internal void SetTrayIcons(Theme systemTheme, Theme manualTheme, Runner runner)
         {
             var theme = manualTheme == Theme.System ? systemTheme : manualTheme;
-             
-            // Calculate color based on tomato clock progress using HSV
-            // Hue: blue (240°) at start -> red (0°/360°) at end
-            // Saturation and Value: use lighter values for subtle overlay
-            float hue = 240f * (1f - tomatoClockProgress); // 240° at progress=0, 0° at progress=1
-            // Clamp hue to [0, 360)
-            if (hue < 0f) hue += 360f;
+            Color finalColor = CalculateProgressColor(tomatoClockProgress);
             
-            // Use lighter saturation and value for subtle color overlay
-            float saturation = 0.3f;
-            float value = 0.9f;
-            Color finalColor = HsvToRgb(hue, saturation, value);
-             
             var runnerName = runner.GetString();
-            var rm = Resources.ResourceManager;
             var capacity = runner.GetFrameNumber();
             var list = new List<Icon>(capacity);
             for (int i = 0; i < capacity; i++)
             {
                 var iconName = $"{runnerName}_{i}".ToLower();
-                if (rm.GetObject(iconName) is not Bitmap bitmap) continue;
+                if (Resources.ResourceManager.GetObject(iconName) is not Bitmap bitmap) continue;
                 if (theme == Theme.Light && tomatoClockProgress == 0f && !tomatoClockCompleted)
                 {
-                    list.Add(bitmap.ToIcon());
+                    list.Add(BitmapToIcon(bitmap));
                 }
                 else
                 {
-                    using var recolored = bitmap.Recolor(finalColor);
-                    list.Add(recolored.ToIcon());
+                    var recolored = RecolorBitmap(bitmap, finalColor);
+                    list.Add(BitmapToIcon(recolored));
                 }
             }
- 
-            lock (iconLock)
+
+            lock (trayIconLock)
             {
-                icons.Clear();
-                icons.AddRange(list);
-                current = 0;
+                trayIcons.Clear();
+                trayIcons.AddRange(list);
+                currentTrayIcon = 0;
             }
+
+            currentRunner = runner;
+            currentTheme = theme;
         }
 
-        private static Color BlendColors(Color color1, Color color2, float ratio)
+        internal BitmapSource GenerateSpritesheet(Theme systemTheme, Theme manualTheme, Runner runner, float progress)
         {
-            // Clamp ratio to 0-1
-            ratio = Math.Clamp(ratio, 0f, 1f);
+            var theme = manualTheme == Theme.System ? systemTheme : manualTheme;
+            Color finalColor = CalculateProgressColor(progress);
             
-            // Linear interpolation between two colors
-            int r = (int)(color1.R * (1 - ratio) + color2.R * ratio);
-            int g = (int)(color1.G * (1 - ratio) + color2.G * ratio);
-            int b = (int)(color1.B * (1 - ratio) + color2.B * ratio);
+            var runnerName = runner.GetString();
+            var frameCount = runner.GetFrameNumber();
             
-            return Color.FromArgb(r, g, b);
+            var firstIconName = $"{runnerName}_0".ToLower();
+            var firstFrame = Resources.ResourceManager.GetObject(firstIconName);
+            if (firstFrame is not Bitmap firstBitmap)
+            {
+                throw new InvalidOperationException($"Failed to load first frame: {firstIconName}");
+            }
+
+            int frameWidth = firstBitmap.Width;
+            int frameHeight = firstBitmap.Height;
+
+            var spritesheet = new WriteableBitmap(frameCount * frameWidth, frameHeight, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+
+            for (int i = 0; i < frameCount; i++)
+            {
+                var iconName = $"{runnerName}_{i}".ToLower();
+                var frame = Resources.ResourceManager.GetObject(iconName);
+                if (frame is not Bitmap bitmap) continue;
+
+                Bitmap processedFrame;
+                if (theme == Theme.Light && progress == 0f && !tomatoClockCompleted)
+                {
+                    processedFrame = bitmap;
+                }
+                else
+                {
+                    processedFrame = RecolorBitmap(bitmap, finalColor);
+                }
+
+                var rect = new Int32Rect(i * frameWidth, 0, frameWidth, frameHeight);
+                var bitmapData = processedFrame.LockBits(
+                    new Rectangle(0, 0, frameWidth, frameHeight),
+                    ImageLockMode.ReadOnly,
+                    PixelFormat.Format32bppArgb);
+
+                try
+                {
+                    var stride = bitmapData.Stride;
+                    var pixels = new byte[stride * frameHeight];
+                    System.Runtime.InteropServices.Marshal.Copy(bitmapData.Scan0, pixels, 0, pixels.Length);
+                    spritesheet.WritePixels(rect, pixels, stride, 0);
+                }
+                finally
+                {
+                    processedFrame.UnlockBits(bitmapData);
+                    if (processedFrame != bitmap)
+                    {
+                        processedFrame.Dispose();
+                    }
+                }
+            }
+
+            spritesheet.Freeze();
+            return spritesheet;
         }
-        
-        /// <summary>
-        /// Converts HSV color to RGB color.
-        /// H: hue [0, 360)
-        /// S: saturation [0, 1]
-        /// V: value [0, 1]
-        /// Returns Color with alpha=255
-        /// </summary>
-        private static Color HsvToRgb(float h, float s, float v)
+
+        internal (int frameWidth, int frameHeight) GetFrameDimensions(Runner runner)
         {
-            // Clamp values
-            h = Math.Clamp(h, 0f, 360f);
-            s = Math.Clamp(s, 0f, 1f);
-            v = Math.Clamp(v, 0f, 1f);
-            
-            float c = v * s; // Chroma
-            float hPrime = h / 60f; // Hue sector
+            var runnerName = runner.GetString();
+            var iconName = $"{runnerName}_0".ToLower();
+            var obj = Resources.ResourceManager.GetObject(iconName);
+            if (obj is not Bitmap bitmap) return (48, 48);
+            return (bitmap.Width, bitmap.Height);
+        }
+
+        private static Color CalculateProgressColor(float progress)
+        {
+            float hue = 240f * (1f - progress);
+            if (hue < 0f) hue += 360f;
+
+            float saturation = 0.3f;
+            float value = 0.9f;
+
+            float c = value * saturation;
+            float hPrime = hue / 60f;
             float x = c * (1f - Math.Abs((hPrime % 2f) - 1f));
-            float m = v - c;
-            
+            float m = value - c;
+
             float rPrime, gPrime, bPrime;
             if (hPrime >= 0 && hPrime < 1)
             {
-                rPrime = c;
-                gPrime = x;
-                bPrime = 0f;
+                rPrime = c; gPrime = x; bPrime = 0f;
             }
             else if (hPrime >= 1 && hPrime < 2)
             {
-                rPrime = x;
-                gPrime = c;
-                bPrime = 0f;
+                rPrime = x; gPrime = c; bPrime = 0f;
             }
             else if (hPrime >= 2 && hPrime < 3)
             {
-                rPrime = 0f;
-                gPrime = c;
-                bPrime = x;
+                rPrime = 0f; gPrime = c; bPrime = x;
             }
             else if (hPrime >= 3 && hPrime < 4)
             {
-                rPrime = 0f;
-                gPrime = x;
-                bPrime = c;
+                rPrime = 0f; gPrime = x; bPrime = c;
             }
             else if (hPrime >= 4 && hPrime < 5)
             {
-                rPrime = x;
-                gPrime = 0f;
-                bPrime = c;
+                rPrime = x; gPrime = 0f; bPrime = c;
             }
-            else // hPrime >= 5 && hPrime < 6
+            else
             {
-                rPrime = c;
-                gPrime = 0f;
-                bPrime = x;
+                rPrime = c; gPrime = 0f; bPrime = x;
             }
-            
-            int r = (int)((rPrime + m) * 255f);
-            int g = (int)((gPrime + m) * 255f);
-            int b = (int)((bPrime + m) * 255f);
-            
-            return Color.FromArgb(r, g, b);
+
+            return Color.FromArgb(
+                (int)((rPrime + m) * 255f),
+                (int)((gPrime + m) * 255f),
+                (int)((bPrime + m) * 255f));
+        }
+
+        private static Bitmap RecolorBitmap(Bitmap bitmap, Color color)
+        {
+            var newBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
+
+            var srcData = bitmap.LockBits(
+                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+
+            var dstData = newBitmap.LockBits(
+                new Rectangle(0, 0, newBitmap.Width, newBitmap.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+
+            try
+            {
+                unsafe
+                {
+                    byte* srcPtr = (byte*)srcData.Scan0;
+                    byte* dstPtr = (byte*)dstData.Scan0;
+
+                    for (int y = 0; y < bitmap.Height; y++)
+                    {
+                        byte* srcRow = srcPtr + (y * srcData.Stride);
+                        byte* dstRow = dstPtr + (y * dstData.Stride);
+
+                        for (int x = 0; x < bitmap.Width; x++)
+                        {
+                            byte* srcPixel = srcRow + (x * 4);
+                            byte* dstPixel = dstRow + (x * 4);
+
+                            dstPixel[0] = color.B;
+                            dstPixel[1] = color.G;
+                            dstPixel[2] = color.R;
+                            dstPixel[3] = srcPixel[3];
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(srcData);
+                newBitmap.UnlockBits(dstData);
+            }
+
+            return newBitmap;
+        }
+
+        private static Icon BitmapToIcon(Bitmap bitmap)
+        {
+            using var pngStream = new MemoryStream();
+            bitmap.Save(pngStream, ImageFormat.Png);
+            var pngData = pngStream.ToArray();
+
+            using var icoStream = new MemoryStream();
+            using var bw = new BinaryWriter(icoStream);
+
+            bw.Write((short)0);
+            bw.Write((short)1);
+            bw.Write((short)1);
+
+            bw.Write((byte)(bitmap.Width >= 256 ? 0 : bitmap.Width));
+            bw.Write((byte)(bitmap.Height >= 256 ? 0 : bitmap.Height));
+            bw.Write((byte)0);
+            bw.Write((byte)0);
+            bw.Write((short)1);
+            bw.Write((short)32);
+            bw.Write(pngData.Length);
+            bw.Write(22);
+
+            bw.Write(pngData);
+
+            icoStream.Position = 0;
+            return new Icon(icoStream);
         }
 
         internal void SetTomatoClockCompleted(bool completed)
@@ -316,33 +426,32 @@ namespace RunCat365
             }
         }
 
-        internal void SetTomatoClockRedIntensity(float intensity)
+        internal void SetTomatoClockProgress(float progress)
         {
-            tomatoClockProgress = intensity;
+            tomatoClockProgress = progress;
         }
 
-        internal void ResetTomatoClockRedIntensity()
+        internal void ResetTomatoClockProgress()
         {
             lastProgress = -1f;
             tomatoClockProgress = 0f;
         }
 
-        internal bool ShouldUpdateIcons()
+        internal bool ShouldRegenerateSpritesheet()
         {
-            // Check if we need to update icons based on progress change
             if (tomatoClockCompleted)
             {
                 return lastProgress != 1.0f;
             }
-             
-            float threshold = 0.05f; // Update if progress changes by more than 5%
+
+            float threshold = 0.05f;
             bool shouldUpdate = Math.Abs(tomatoClockProgress - lastProgress) > threshold;
-             
+
             if (shouldUpdate)
             {
                 lastProgress = tomatoClockProgress;
             }
-             
+
             return shouldUpdate;
         }
 
@@ -359,10 +468,9 @@ namespace RunCat365
             }
             catch (InvalidOperationException ex)
             {
-                MessageBox.Show(ex.Message, Strings.Message_Warning, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                System.Windows.Forms.MessageBox.Show(ex.Message, Strings.Message_Warning, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-
-        }      
+        }
 
         internal void ShowBalloonTip(BalloonTipType balloonTipType)
         {
@@ -370,22 +478,22 @@ namespace RunCat365
             notifyIcon.ShowBalloonTip(5000, info.Title, info.Text, info.Icon);
         }
 
-        internal Icon? GetCurrentIcon()
+        internal Icon? GetCurrentTrayIcon()
         {
-            lock (iconLock)
+            lock (trayIconLock)
             {
-                if (icons.Count == 0) return null;
-                return icons[current];
+                if (trayIcons.Count == 0) return null;
+                return trayIcons[currentTrayIcon];
             }
         }
 
-        internal void AdvanceFrame()
+        internal void AdvanceTrayIcon()
         {
-            lock (iconLock)
+            lock (trayIconLock)
             {
-                if (icons.Count == 0) return;
-                if (icons.Count <= current) current = 0;
-                current = (current + 1) % icons.Count;
+                if (trayIcons.Count == 0) return;
+                if (trayIcons.Count <= currentTrayIcon) currentTrayIcon = 0;
+                currentTrayIcon = (currentTrayIcon + 1) % trayIcons.Count;
             }
         }
 
@@ -414,9 +522,9 @@ namespace RunCat365
         {
             if (disposing)
             {
-                lock (iconLock)
+                lock (trayIconLock)
                 {
-                    icons.Clear();
+                    trayIcons.Clear();
                 }
 
                 if (notifyIcon is not null)

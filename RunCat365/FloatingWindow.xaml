@@ -10,5 +10,4 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize">
-    <Image x:Name="IconImage" Stretch="None" />
 </Window>

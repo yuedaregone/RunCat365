@@ -17,7 +17,6 @@ using RunCat365.Properties;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Threading;
-using FormsTimer = System.Windows.Forms.Timer;
 
 namespace RunCat365
 {
@@ -34,7 +33,6 @@ namespace RunCat365
             CultureInfo.CurrentUICulture = defaultCultureInfo;
             CultureInfo.CurrentCulture = defaultCultureInfo;
 
-            // Terminate RunCat365 if there's any existing instance.
             using var procMutex = new Mutex(true, "_RUNCAT_MUTEX", out var result);
             if (!result) return;
 
@@ -54,12 +52,12 @@ namespace RunCat365
 
     internal class RunCat365ApplicationContext
     {
-        private const int ANIMATE_TIMER_DEFAULT_INTERVAL = 200;
         private readonly LaunchAtStartupManager launchAtStartupManager;
         private readonly ContextMenuManager contextMenuManager;
         private readonly FloatingWindow floatingWindow;
-        private readonly FormsTimer animateTimer;
+        private readonly FrameAnimationEngine animationEngine;
         private readonly TomatoClock tomatoClock;
+        private readonly DispatcherTimer tomatoTimer;
         private Runner runner = Runner.Cat;
         private Theme manualTheme = Theme.System;
         private int tomatoClockDuration = 25;
@@ -75,14 +73,22 @@ namespace RunCat365
                 tomatoClockDuration = UserSettings.Default.TomatoClockDuration;
             }
 
-            SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(UserPreferenceChanged);
+            SystemEvents.UserPreferenceChanged += UserPreferenceChanged;
 
             launchAtStartupManager = new LaunchAtStartupManager();
             
             tomatoClock = new TomatoClock();
             tomatoClock.SetDuration(tomatoClockDuration);
-            tomatoClock.Tick += TomatoClock_Tick;
             tomatoClock.Completed += TomatoClock_Completed;
+
+            tomatoTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            tomatoTimer.Tick += TomatoTimer_Tick;
+
+            animationEngine = new FrameAnimationEngine();
+            animationEngine.FrameChanged += AnimationEngine_FrameChanged;
 
             contextMenuManager = new ContextMenuManager(
                 () => runner,
@@ -101,19 +107,40 @@ namespace RunCat365
                 ResetTomatoClock
             );
 
-            animateTimer = new FormsTimer
-            {
-                Interval = ANIMATE_TIMER_DEFAULT_INTERVAL
-            };
-            animateTimer.Tick += AnimationTick;
-            animateTimer.Start();
-
             floatingWindow = new FloatingWindow();
+
+            InitializeAnimation();
+
             floatingWindow.Show();
 
+            tomatoTimer.Start();
             tomatoClock.Start();
 
             ShowBalloonTipIfNeeded();
+        }
+
+        private void InitializeAnimation()
+        {
+            var systemTheme = GetSystemTheme();
+            var (frameWidth, frameHeight) = contextMenuManager.GetFrameDimensions(runner);
+            var spritesheet = contextMenuManager.GenerateSpritesheet(systemTheme, manualTheme, runner, 0);
+
+            animationEngine.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
+            animationEngine.SetSpeed(0);
+            animationEngine.Start();
+
+            floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
+        }
+
+        private void AnimationEngine_FrameChanged(object? sender, int frameIndex)
+        {
+            floatingWindow.SetFrame(frameIndex);
+            contextMenuManager.AdvanceTrayIcon();
+            var trayIcon = contextMenuManager.GetCurrentTrayIcon();
+            if (trayIcon is not null)
+            {
+                // Tray icon updates can be throttled if needed
+            }
         }
 
         private void ExitApplication()
@@ -147,7 +174,7 @@ namespace RunCat365
             if (e.Category == UserPreferenceCategory.General)
             {
                 var systemTheme = GetSystemTheme();
-                contextMenuManager.SetIcons(systemTheme, manualTheme, runner);
+                RegenerateSpritesheet(systemTheme);
             }
         }
 
@@ -156,6 +183,7 @@ namespace RunCat365
             runner = r;
             UserSettings.Default.Runner = runner.ToString();
             UserSettings.Default.Save();
+            RegenerateSpritesheet(GetSystemTheme());
         }
 
         private void ChangeManualTheme(Theme t)
@@ -163,6 +191,7 @@ namespace RunCat365
             manualTheme = t;
             UserSettings.Default.Theme = manualTheme.ToString();
             UserSettings.Default.Save();
+            RegenerateSpritesheet(GetSystemTheme());
         }
 
         private void ChangeTomatoClockDuration(int duration)
@@ -173,26 +202,12 @@ namespace RunCat365
             UserSettings.Default.Save();
         }
 
-        private void AnimationTick(object? sender, EventArgs e)
-        {
-            contextMenuManager.AdvanceFrame();
-            var icon = contextMenuManager.GetCurrentIcon();
-            if (icon is not null)
-            {
-                floatingWindow.UpdateIcon(icon);
-            }
-        }
-
-        private void TomatoClock_Tick(object? sender, EventArgs e)
-        {
-            UpdateTomatoClockInfo();
-        }
-
         private void StartTomatoClock()
         {
             contextMenuManager.SetTomatoClockCompleted(false);
-            contextMenuManager.ResetTomatoClockRedIntensity();
-            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            contextMenuManager.ResetTomatoClockProgress();
+            animationEngine.Reset();
+            RegenerateSpritesheet(GetSystemTheme());
             tomatoClock.Start();
         }
 
@@ -204,15 +219,21 @@ namespace RunCat365
         private void ResetTomatoClock()
         {
             contextMenuManager.SetTomatoClockCompleted(false);
-            contextMenuManager.ResetTomatoClockRedIntensity();
-            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            contextMenuManager.ResetTomatoClockProgress();
+            animationEngine.Reset();
+            RegenerateSpritesheet(GetSystemTheme());
             tomatoClock.Reset();
         }
 
         private void TomatoClock_Completed(object? sender, EventArgs e)
         {
             contextMenuManager.SetTomatoClockCompleted(true);
-            contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+            RegenerateSpritesheet(GetSystemTheme());
+        }
+
+        private void TomatoTimer_Tick(object? sender, EventArgs e)
+        {
+            UpdateTomatoClockInfo();
         }
 
         private string GetTomatoClockDescription()
@@ -227,15 +248,6 @@ namespace RunCat365
             return $"{Strings.SystemInfo_TomatoClock}: {remainingMinutes:D2}:{remainingSeconds:D2}";
         }
 
-        private int CalculateInterval()
-        {
-            float progress = tomatoClock.GetProgress();
-            float minInterval = 25f;
-            float maxInterval = 500f;
-            float interval = maxInterval - (progress * (maxInterval - minInterval));
-            return (int)interval;
-        }
-
         private void UpdateTomatoClockInfo()
         {
             contextMenuManager.SetNotifyIconText(GetTomatoClockDescription());
@@ -248,27 +260,36 @@ namespace RunCat365
                 systemInfoValues.Add($"Progress: {tomatoClock.GetProgress():P0}");
             }
 
-            float redIntensity = tomatoClock.GetProgress();
-            contextMenuManager.SetTomatoClockRedIntensity(redIntensity);
+            float progress = tomatoClock.GetProgress();
+            contextMenuManager.SetTomatoClockProgress(progress);
+            animationEngine.SetSpeed(progress);
 
-            int interval = CalculateInterval();
-            animateTimer.Interval = interval;
-
-            if (contextMenuManager.ShouldUpdateIcons())
+            if (contextMenuManager.ShouldRegenerateSpritesheet())
             {
-                contextMenuManager.SetIcons(GetSystemTheme(), manualTheme, runner);
+                RegenerateSpritesheet(GetSystemTheme());
             }
 
             contextMenuManager.SetSystemInfoMenuText(string.Join("\n", systemInfoValues));
+        }
+
+        private void RegenerateSpritesheet(Theme systemTheme)
+        {
+            var progress = tomatoClock.GetProgress();
+            var (frameWidth, frameHeight) = contextMenuManager.GetFrameDimensions(runner);
+            var spritesheet = contextMenuManager.GenerateSpritesheet(systemTheme, manualTheme, runner, progress);
+
+            animationEngine.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
+            floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
         }
 
         public void Dispose()
         {
             SystemEvents.UserPreferenceChanged -= UserPreferenceChanged;
 
-            animateTimer?.Stop();
-            animateTimer?.Dispose();
-            tomatoClock?.Dispose();
+            tomatoTimer.Stop();
+            tomatoClock.Dispose();
+
+            animationEngine.Stop();
 
             floatingWindow?.Close();
 
