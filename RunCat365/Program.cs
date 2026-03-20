@@ -126,6 +126,8 @@ namespace RunCat365
         {
             var (spritesheet, frameWidth, frameHeight) = GenerateSpritesheet(runner);
 
+            floatingWindow.RestorePosition();
+
             animationEngine.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
             animationEngine.Start();
 

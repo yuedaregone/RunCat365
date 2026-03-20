@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="MovementSpeedBase" Type="System.Double" Scope="User">
-      <Value Profile="(Default)">4</Value>
+      <Value Profile="(Default)">3</Value>
     </Setting>
     <Setting Name="Runner" Type="System.String" Scope="User">
       <Value Profile="(Default)">Cat</Value>
@@ -28,6 +28,12 @@
     </Setting>
     <Setting Name="MovementMode" Type="System.String" Scope="User">
       <Value Profile="(Default)">Wrap</Value>
+    </Setting>
+    <Setting Name="WindowLeft" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="WindowTop" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">0</Value>
     </Setting>
   </Settings>
 </SettingsFile>

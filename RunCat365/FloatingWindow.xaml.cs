@@ -18,6 +18,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
+using RunCat365.Properties;
 
 namespace RunCat365
 {
@@ -30,7 +31,7 @@ namespace RunCat365
         private BitmapSource? _spritesheet;
         private int _frameWidth = 48;
         private int _frameHeight = 48;
-        private bool _isUserPlaced;
+        private bool _userPositioned;
 
         private double _baseSpeed = 4.0;
         private int _direction = 1;
@@ -156,7 +157,7 @@ namespace RunCat365
             Width = frameWidth;
             Height = frameHeight;
 
-            if (!_isUserPlaced)
+            if (!_userPositioned)
             {
                 SetDefaultPosition();
             }
@@ -173,8 +174,34 @@ namespace RunCat365
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
-            _isUserPlaced = true;
+            _userPositioned = true;
             DragMove();
+            SavePosition();
+        }
+
+        private void SavePosition()
+        {
+            UserSettings.Default.WindowLeft = Left;
+            UserSettings.Default.WindowTop = Top;
+            UserSettings.Default.Save();
+        }
+
+        public void RestorePosition()
+        {
+            double savedLeft = UserSettings.Default.WindowLeft;
+            double savedTop = UserSettings.Default.WindowTop;
+
+            if (savedLeft != 0 || savedTop != 0)
+            {
+                Left = savedLeft;
+                Top = savedTop;
+                _userPositioned = true;
+            }
+            else
+            {
+                SetDefaultPosition();
+                _userPositioned = false;
+            }
         }
     }
 }

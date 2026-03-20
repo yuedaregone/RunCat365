@@ -53,7 +53,7 @@ namespace RunCat365
             {
                 Runner.Cat => 5,
                 Runner.Parrot => 10,
-                Runner.Horse => 14,
+                Runner.Horse => 5,
                 _ => 0,
             };
         }
