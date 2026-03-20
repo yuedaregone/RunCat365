@@ -58,6 +58,7 @@ namespace RunCat365
         private readonly FrameAnimationEngine animationEngine;
         private readonly TomatoClock tomatoClock;
         private readonly DispatcherTimer tomatoTimer;
+        private readonly DispatcherTimer moveTimer;
         private Runner runner = Runner.Cat;
         private int tomatoClockDuration = 25;
 
@@ -83,8 +84,18 @@ namespace RunCat365
             };
             tomatoTimer.Tick += TomatoTimer_Tick;
 
+            moveTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(16)
+            };
+            moveTimer.Tick += MoveTimer_Tick;
+
             animationEngine = new FrameAnimationEngine();
             animationEngine.FrameChanged += AnimationEngine_FrameChanged;
+            animationEngine.SetTomatoClock(() => tomatoClock.GetProgress());
+
+            floatingWindow = new FloatingWindow(() => tomatoClock.GetProgress());
+            floatingWindow.MovementSpeedBase = UserSettings.Default.MovementSpeedBase;
 
             contextMenuManager = new ContextMenuManager(
                 () => runner,
@@ -100,23 +111,20 @@ namespace RunCat365
                 ResetTomatoClock
             );
 
-            floatingWindow = new FloatingWindow();
-
             InitializeAnimation();
 
             floatingWindow.Show();
+            moveTimer.Start();
 
             tomatoTimer.Start();
             tomatoClock.Start();
-            animationEngine.SetTomatoClockState(DateTime.Now, TimeSpan.FromMinutes(tomatoClockDuration), true);
 
             ShowBalloonTipIfNeeded();
         }
 
         private void InitializeAnimation()
         {
-            var (frameWidth, frameHeight) = contextMenuManager.GetFrameDimensions(runner);
-            var spritesheet = GenerateSpritesheet(runner);
+            var (spritesheet, frameWidth, frameHeight) = GenerateSpritesheet(runner);
 
             animationEngine.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
             animationEngine.Start();
@@ -124,41 +132,43 @@ namespace RunCat365
             floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
         }
 
-        private BitmapSource GenerateSpritesheet(Runner runner)
+        private (BitmapSource spritesheet, int frameWidth, int frameHeight) GenerateSpritesheet(Runner runner)
         {
             var runnerName = runner.GetString();
             var frameCount = runner.GetFrameNumber();
             
-            var firstIconName = $"{runnerName}_0".ToLower();
-            var firstFrame = Resources.ResourceManager.GetObject(firstIconName);
-            if (firstFrame is not System.Drawing.Bitmap firstBitmap)
+            int maxWidth = 0;
+            int maxHeight = 0;
+            for (int i = 0; i < frameCount; i++)
             {
-                throw new InvalidOperationException($"Failed to load first frame: {firstIconName}");
+                var iconName = $"{runnerName}_{i}".ToLower();
+                if (Resources.ResourceManager.GetObject(iconName) is not System.Drawing.Bitmap bmp) continue;
+                if (bmp.Width > maxWidth) maxWidth = bmp.Width;
+                if (bmp.Height > maxHeight) maxHeight = bmp.Height;
             }
 
-            int frameWidth = firstBitmap.Width;
-            int frameHeight = firstBitmap.Height;
-
             var spritesheet = new System.Windows.Media.Imaging.WriteableBitmap(
-                frameCount * frameWidth, frameHeight, 96, 96,
+                frameCount * maxWidth, maxHeight, 96, 96,
                 System.Windows.Media.PixelFormats.Bgra32, null);
 
             for (int i = 0; i < frameCount; i++)
             {
                 var iconName = $"{runnerName}_{i}".ToLower();
-                var frame = Resources.ResourceManager.GetObject(iconName);
-                if (frame is not System.Drawing.Bitmap bitmap) continue;
+                if (Resources.ResourceManager.GetObject(iconName) is not System.Drawing.Bitmap bitmap) continue;
 
-                var rect = new System.Windows.Int32Rect(i * frameWidth, 0, frameWidth, frameHeight);
+                int offsetX = (maxWidth - bitmap.Width) / 2;
+                int offsetY = (maxHeight - bitmap.Height) / 2;
+
+                var rect = new System.Windows.Int32Rect(i * maxWidth + offsetX, offsetY, bitmap.Width, bitmap.Height);
                 var bitmapData = bitmap.LockBits(
-                    new System.Drawing.Rectangle(0, 0, frameWidth, frameHeight),
+                    new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height),
                     System.Drawing.Imaging.ImageLockMode.ReadOnly,
                     System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
                 try
                 {
                     var stride = bitmapData.Stride;
-                    var pixels = new byte[stride * frameHeight];
+                    var pixels = new byte[stride * bitmap.Height];
                     System.Runtime.InteropServices.Marshal.Copy(bitmapData.Scan0, pixels, 0, pixels.Length);
                     spritesheet.WritePixels(rect, pixels, stride, 0);
                 }
@@ -169,7 +179,7 @@ namespace RunCat365
             }
 
             spritesheet.Freeze();
-            return spritesheet;
+            return (spritesheet, maxWidth, maxHeight);
         }
 
         private void AnimationEngine_FrameChanged(object? sender, int frameIndex)
@@ -181,6 +191,11 @@ namespace RunCat365
             {
                 // Tray icon updates can be throttled if needed
             }
+        }
+
+        private void MoveTimer_Tick(object? sender, EventArgs e)
+        {
+            floatingWindow.Tick();
         }
 
         private void ExitApplication()
@@ -213,30 +228,22 @@ namespace RunCat365
             tomatoClock.SetDuration(duration);
             UserSettings.Default.TomatoClockDuration = duration;
             UserSettings.Default.Save();
-
-            if (tomatoClock.IsRunning)
-            {
-                animationEngine.SetTomatoClockState(DateTime.Now, TimeSpan.FromMinutes(tomatoClockDuration), true);
-            }
         }
 
         private void StartTomatoClock()
         {
             animationEngine.Reset();
-            animationEngine.SetTomatoClockState(DateTime.Now, TimeSpan.FromMinutes(tomatoClockDuration), true);
             tomatoClock.Start();
         }
 
         private void PauseTomatoClock()
         {
             tomatoClock.Pause();
-            animationEngine.SetTomatoClockState(DateTime.Now, TimeSpan.FromMinutes(tomatoClockDuration), false);
         }
 
         private void ResetTomatoClock()
         {
             animationEngine.Reset();
-            animationEngine.SetTomatoClockState(DateTime.Now, TimeSpan.FromMinutes(tomatoClockDuration), false);
             tomatoClock.Reset();
         }
 
@@ -278,8 +285,7 @@ namespace RunCat365
 
         private void RegenerateSpritesheet()
         {
-            var (frameWidth, frameHeight) = contextMenuManager.GetFrameDimensions(runner);
-            var spritesheet = GenerateSpritesheet(runner);
+            var (spritesheet, frameWidth, frameHeight) = GenerateSpritesheet(runner);
 
             animationEngine.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
             floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
@@ -288,6 +294,7 @@ namespace RunCat365
         public void Dispose()
         {
             tomatoTimer.Stop();
+            moveTimer.Stop();
             tomatoClock.Dispose();
 
             animationEngine.Stop();

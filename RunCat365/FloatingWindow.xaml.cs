@@ -25,18 +25,56 @@ namespace RunCat365
     {
         private readonly WpfRectangle _rectangle;
         private readonly ImageBrush _brush;
-        private readonly TranslateTransform _transform;
         private readonly Canvas _canvas;
+        private readonly Func<double> _getProgress;
         private BitmapSource? _spritesheet;
-        private int _frameWidth;
-        private int _frameHeight;
+        private int _frameWidth = 48;
+        private int _frameHeight = 48;
         private bool _isUserPlaced;
 
-        public FloatingWindow()
+        private double _baseSpeed = 4.0;
+        private int _direction = 1;
+
+        public double MovementSpeedBase
         {
+            get => _baseSpeed;
+            set => _baseSpeed = value;
+        }
+
+        private void UpdatePosition()
+        {
+            if (_spritesheet == null) return;
+
+            double progress = _getProgress();
+            double speed = _baseSpeed * progress;
+            double deltaX = speed * _direction;
+
+            double newLeft = Left + deltaX;
+            var workArea = SystemParameters.WorkArea;
+
+            if (newLeft > workArea.Right)
+            {
+                newLeft = workArea.Left - Width;
+            }
+            else if (newLeft < workArea.Left - Width)
+            {
+                newLeft = workArea.Right;
+            }
+
+            Left = newLeft;
+        }
+
+        public void Tick()
+        {
+            UpdatePosition();
+        }
+
+        public FloatingWindow(Func<double> getProgress)
+        {
+            _getProgress = getProgress;
+
             InitializeComponent();
 
-            _transform = new TranslateTransform();
             _brush = new ImageBrush
             {
                 Stretch = Stretch.None,
@@ -44,10 +82,6 @@ namespace RunCat365
                 AlignmentY = AlignmentY.Top,
                 TileMode = TileMode.None
             };
-
-            var transformGroup = new TransformGroup();
-            transformGroup.Children.Add(_transform);
-            _brush.Transform = transformGroup;
 
             _rectangle = new WpfRectangle
             {
@@ -64,13 +98,43 @@ namespace RunCat365
             var grid = new Grid();
             grid.Children.Add(_canvas);
             Content = grid;
+        }
 
-            if (!_isUserPlaced)
+        private void SetDefaultPosition()
+        {
+            var workArea = SystemParameters.WorkArea;
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            double screenHeight = SystemParameters.PrimaryScreenHeight;
+
+            bool taskbarOnLeft = workArea.Left > 0;
+            bool taskbarOnRight = workArea.Right < screenWidth;
+            bool taskbarOnBottom = workArea.Bottom < screenHeight;
+
+            if (taskbarOnBottom)
             {
-                var screen = SystemParameters.WorkArea;
-                Left = screen.Right - Width - 50;
-                Top = screen.Bottom - Height - 50;
+                Top = workArea.Bottom - Height;
             }
+            else
+            {
+                Top = workArea.Top;
+            }
+
+            if (taskbarOnLeft)
+            {
+                Top = workArea.Bottom - Height;
+                Left = workArea.Left + (workArea.Width - Width) / 2;
+            }
+            else if (taskbarOnRight)
+            {
+                Top = workArea.Bottom - Height;
+                Left = workArea.Left + (workArea.Width - Width) / 2;
+            }
+            else
+            {
+                Left = workArea.Left + (workArea.Width - Width) / 2;
+            }
+
+            _direction = 1;
         }
 
         public void LoadSpritesheet(BitmapSource spritesheet, int frameWidth, int frameHeight)
@@ -94,9 +158,7 @@ namespace RunCat365
 
             if (!_isUserPlaced)
             {
-                var screen = SystemParameters.WorkArea;
-                Left = screen.Right - Width - 50;
-                Top = screen.Bottom - Height - 50;
+                SetDefaultPosition();
             }
         }
 

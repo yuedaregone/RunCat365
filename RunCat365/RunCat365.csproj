@@ -42,6 +42,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="resources\game\road_flat.png" />
+    <None Remove="resources\game\road_hill.png" />
+    <None Remove="resources\game\road_sprout.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="resources\app_icon.ico" />
   </ItemGroup>
 

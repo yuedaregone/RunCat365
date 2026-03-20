@@ -162,45 +162,6 @@ namespace RunCat365.Properties {
             }
         }
 
-        /// <summary>
-        ///   Looks up a localized string similar to Theme.
-        /// </summary>
-        internal static string Menu_Theme {
-            get {
-                return ResourceManager.GetString("Menu_Theme", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to App has launched. If the icon is not on the taskbar, it has been omitted, so please move it manually and pin it..
-        /// </summary>
-        internal static string Message_AppLaunched {
-            get {
-                return ResourceManager.GetString("Message_AppLaunched", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to Failed to get CPU usage. Unable to update running speed..
-        /// </summary>
-        internal static string Message_CPUUsageUnavailable {
-            get {
-                return ResourceManager.GetString("Message_CPUUsageUnavailable", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to Warning.
-        /// </summary>
-        internal static string Message_Warning {
-            get {
-                return ResourceManager.GetString("Message_Warning", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to Cat.
-        /// </summary>
         internal static string Runner_Cat {
             get {
                 return ResourceManager.GetString("Runner_Cat", resourceCulture);
@@ -402,6 +363,24 @@ namespace RunCat365.Properties {
         internal static string SystemInfo_TomatoClock {
             get {
                 return ResourceManager.GetString("SystemInfo_TomatoClock", resourceCulture);
+            }
+        }
+        
+        internal static string Message_AppLaunched {
+            get {
+                return ResourceManager.GetString("Message_AppLaunched", resourceCulture);
+            }
+        }
+        
+        internal static string Message_Warning {
+            get {
+                return ResourceManager.GetString("Message_Warning", resourceCulture);
+            }
+        }
+        
+        internal static string Message_CPUUsageUnavailable {
+            get {
+                return ResourceManager.GetString("Message_CPUUsageUnavailable", resourceCulture);
             }
         }
     }

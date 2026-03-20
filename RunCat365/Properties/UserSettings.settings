@@ -2,6 +2,9 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="RunCat365.Properties" GeneratedClassName="UserSettings">
   <Profiles />
   <Settings>
+    <Setting Name="MovementSpeedBase" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">4</Value>
+    </Setting>
     <Setting Name="Runner" Type="System.String" Scope="User">
       <Value Profile="(Default)">Cat</Value>
     </Setting>
@@ -19,6 +22,12 @@
     </Setting>
     <Setting Name="TomatoClockDuration" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">25</Value>
+    </Setting>
+    <Setting Name="SpeedSource" Type="System.String" Scope="User">
+      <Value Profile="(Default)">CPU</Value>
+    </Setting>
+    <Setting Name="MovementMode" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Wrap</Value>
     </Setting>
   </Settings>
 </SettingsFile>

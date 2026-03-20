@@ -28,11 +28,7 @@ namespace RunCat365
         private double _intervalMs = 200;
         private DateTime _lastFrameTime = DateTime.MinValue;
         private bool _isRunning;
-
-        private DateTime _tomatoClockStartTime;
-        private TimeSpan _tomatoClockDuration = TimeSpan.FromMinutes(25);
-        private bool _isTomatoClockActive;
-        private double _pausedProgress;
+        private Func<double>? _getTomatoProgress;
 
         public event EventHandler<int>? FrameChanged;
 
@@ -41,6 +37,11 @@ namespace RunCat365
         public int FrameHeight => _frameHeight;
         public int FrameCount => _frameCount;
         public int CurrentFrame => _currentFrame;
+
+        public void SetTomatoClock(Func<double> getTomatoProgress)
+        {
+            _getTomatoProgress = getTomatoProgress;
+        }
 
         public void LoadSpritesheet(BitmapSource spritesheet, int frameWidth, int frameHeight)
         {
@@ -56,24 +57,6 @@ namespace RunCat365
             float minInterval = 25f;
             float maxInterval = 500f;
             _intervalMs = maxInterval - (progress * (maxInterval - minInterval));
-        }
-
-        public void SetTomatoClockState(DateTime startTime, TimeSpan duration, bool isRunning)
-        {
-            _tomatoClockStartTime = startTime;
-            _tomatoClockDuration = duration;
-            _isTomatoClockActive = isRunning;
-            if (!isRunning)
-            {
-                var elapsed = (DateTime.Now - _tomatoClockStartTime).TotalSeconds;
-                _pausedProgress = Math.Min(1.0, elapsed / _tomatoClockDuration.TotalSeconds);
-            }
-        }
-
-        public void AdjustTomatoClockStartTime()
-        {
-            var currentProgress = Math.Min(1.0, (DateTime.Now - _tomatoClockStartTime).TotalSeconds / _tomatoClockDuration.TotalSeconds);
-            _tomatoClockStartTime = DateTime.Now - TimeSpan.FromSeconds(currentProgress * _tomatoClockDuration.TotalSeconds);
         }
 
         public void Start()
@@ -99,16 +82,7 @@ namespace RunCat365
         {
             if (!_isRunning || _spritesheet is null) return;
 
-            double progress;
-            if (_isTomatoClockActive)
-            {
-                var elapsed = (DateTime.Now - _tomatoClockStartTime).TotalSeconds;
-                progress = Math.Min(1.0, elapsed / _tomatoClockDuration.TotalSeconds);
-            }
-            else
-            {
-                progress = _pausedProgress;
-            }
+            double progress = _getTomatoProgress?.Invoke() ?? 0;
             _intervalMs = 500 - (progress * 475);
 
             var now = DateTime.Now;
