@@ -58,7 +58,6 @@ namespace RunCat365
         private readonly FrameAnimationEngine animationEngine;
         private readonly TomatoClock tomatoClock;
         private readonly DispatcherTimer tomatoTimer;
-        private readonly DispatcherTimer moveTimer;
         private Runner runner = Runner.Cat;
         private int tomatoClockDuration = 25;
 
@@ -84,19 +83,13 @@ namespace RunCat365
             };
             tomatoTimer.Tick += TomatoTimer_Tick;
 
-            moveTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(16)
-            };
-            moveTimer.Tick += MoveTimer_Tick;
-
             animationEngine = new FrameAnimationEngine();
             animationEngine.FrameChanged += AnimationEngine_FrameChanged;
             animationEngine.SetTomatoClock(() => tomatoClock.GetProgress());
 
             floatingWindow = new FloatingWindow(() => tomatoClock.GetProgress());
             floatingWindow.MovementSpeedBase = UserSettings.Default.MovementSpeedBase;
-
+            
             contextMenuManager = new ContextMenuManager(
                 () => runner,
                 r => ChangeRunner(r),
@@ -114,7 +107,8 @@ namespace RunCat365
             InitializeAnimation();
 
             floatingWindow.Show();
-            moveTimer.Start();
+            animationEngine.SpeedChanged += floatingWindow.SetSpeed;
+            floatingWindow.StartMoveTimer();
 
             tomatoTimer.Start();
             tomatoClock.Start();
@@ -187,17 +181,11 @@ namespace RunCat365
         private void AnimationEngine_FrameChanged(object? sender, int frameIndex)
         {
             floatingWindow.SetFrame(frameIndex);
-            contextMenuManager.AdvanceTrayIcon();
+contextMenuManager.AdvanceTrayIcon();
             var trayIcon = contextMenuManager.GetCurrentTrayIcon();
             if (trayIcon is not null)
             {
-                // Tray icon updates can be throttled if needed
             }
-        }
-
-        private void MoveTimer_Tick(object? sender, EventArgs e)
-        {
-            floatingWindow.Tick();
         }
 
         private void ExitApplication()
@@ -293,18 +281,15 @@ namespace RunCat365
             floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
         }
 
-        public void Dispose()
+public void Dispose()
         {
             tomatoTimer.Stop();
-            moveTimer.Stop();
-            tomatoClock.Dispose();
-
             animationEngine.Stop();
-
-            floatingWindow?.Close();
-
-            contextMenuManager?.HideNotifyIcon();
-            contextMenuManager?.Dispose();
+            floatingWindow.StopMoveTimer();
+            animationEngine.FrameChanged -= AnimationEngine_FrameChanged;
+            animationEngine.SpeedChanged -= floatingWindow.SetSpeed;
+            tomatoClock.Dispose();
+            contextMenuManager.Dispose();
         }
     }
 }

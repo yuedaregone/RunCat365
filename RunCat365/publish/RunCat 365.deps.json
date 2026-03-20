@@ -8,7 +8,7 @@
     ".NETCoreApp,Version=v9.0": {
       "RunCat 365/3.4.0": {
         "dependencies": {
-          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.26100.57"
+          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.19041.57"
         },
         "runtime": {
           "RunCat 365.dll": {}
@@ -34,11 +34,11 @@
           }
         }
       },
-      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.26100.57": {
+      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.19041.57": {
         "runtime": {
           "Microsoft.Windows.SDK.NET.dll": {
-            "assemblyVersion": "10.0.26100.38",
-            "fileVersion": "10.0.26100.55"
+            "assemblyVersion": "10.0.19041.38",
+            "fileVersion": "10.0.19041.55"
           },
           "WinRT.Runtime.dll": {
             "assemblyVersion": "2.2.0.0",
@@ -54,7 +54,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.26100.57": {
+    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.19041.57": {
       "type": "runtimepack",
       "serviceable": false,
       "sha512": ""

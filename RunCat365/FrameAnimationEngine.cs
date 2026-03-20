@@ -29,8 +29,12 @@ namespace RunCat365
         private DateTime _lastFrameTime = DateTime.MinValue;
         private bool _isRunning;
         private Func<double>? _getTomatoProgress;
+        
 
         public event EventHandler<int>? FrameChanged;
+        public event EventHandler<float>? SpeedChanged;
+        
+        private const float MaxSpeed = 8f;
 
         public BitmapSource? Spritesheet => _spritesheet;
         public int FrameWidth => _frameWidth;
@@ -83,7 +87,9 @@ namespace RunCat365
             if (!_isRunning || _spritesheet is null) return;
 
             double progress = _getTomatoProgress?.Invoke() ?? 0;
+            
             _intervalMs = 500 - (progress * 475);
+            float speed = (float)(MaxSpeed * progress);
 
             var now = DateTime.Now;
             if ((now - _lastFrameTime).TotalMilliseconds < _intervalMs) return;
@@ -91,6 +97,7 @@ namespace RunCat365
             _lastFrameTime = now;
             _currentFrame = (_currentFrame + 1) % _frameCount;
             FrameChanged?.Invoke(this, _currentFrame);
+            SpeedChanged?.Invoke(this, speed);
         }
     }
 }

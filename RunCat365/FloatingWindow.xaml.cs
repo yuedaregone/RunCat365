@@ -17,6 +17,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
 using RunCat365.Properties;
 
@@ -28,51 +29,52 @@ namespace RunCat365
         private readonly ImageBrush _brush;
         private readonly Canvas _canvas;
         private readonly Func<double> _getProgress;
+        private readonly DispatcherTimer _moveTimer;
         private BitmapSource? _spritesheet;
         private int _frameWidth = 48;
         private int _frameHeight = 48;
         private bool _userPositioned;
 
-        private double _baseSpeed = 4.0;
+        private float _currentSpeed;
         private int _direction = 1;
 
         public double MovementSpeedBase
         {
-            get => _baseSpeed;
-            set => _baseSpeed = value;
+            get => _currentSpeed;
+            set => _currentSpeed = (float)value;
         }
 
-        private void UpdatePosition()
+        public void SetSpeed(object? sender, float speed)
         {
-            if (_spritesheet == null) return;
-
-            double progress = _getProgress();
-            double speed = _baseSpeed * progress;
-            double deltaX = speed * _direction;
-
-            double newLeft = Left + deltaX;
-            var workArea = SystemParameters.WorkArea;
-
-            if (newLeft > workArea.Right)
-            {
-                newLeft = workArea.Left - Width;
-            }
-            else if (newLeft < workArea.Left - Width)
-            {
-                newLeft = workArea.Right;
-            }
-
-            Left = newLeft;
+            _currentSpeed = speed;
         }
 
-        public void Tick()
+        private void OnMoveTimer(object? sender, EventArgs e)
         {
-            UpdatePosition();
+            if (_currentSpeed <= 0) return;
+
+            Left += _currentSpeed * _direction;
+
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            if (Left > screenWidth)
+            {
+                Left = -Width;
+            }
+            else if (Left < -Width)
+            {
+                Left = screenWidth;
+            }
         }
 
         public FloatingWindow(Func<double> getProgress)
         {
             _getProgress = getProgress;
+
+            _moveTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(16)
+            };
+            _moveTimer.Tick += OnMoveTimer;
 
             InitializeComponent();
 
@@ -99,6 +101,16 @@ namespace RunCat365
             var grid = new Grid();
             grid.Children.Add(_canvas);
             Content = grid;
+        }
+
+        public void StartMoveTimer()
+        {
+            _moveTimer.Start();
+        }
+
+        public void StopMoveTimer()
+        {
+            _moveTimer.Stop();
         }
 
         private void SetDefaultPosition()

@@ -9,126 +9,63 @@
 //    Unless required by applicable law or agreed to in writing, software
 //    distributed under the License is distributed on an "AS IS" BASIS,
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
+    //    See the License for the specific language governing permissions and
+    //    limitations under the License.
 
-using Microsoft.Win32;
-using Windows.ApplicationModel;
+    using System.IO;
+    using System.Reflection;
+
 
 namespace RunCat365
 {
-    internal interface ILaunchAtStartupManager
-    {
-        bool GetEnabled();
-        bool SetEnabled(bool enabled);
-    }
-
-    internal sealed class PackagedLaunchAtStartupManager : ILaunchAtStartupManager
-    {
-        private static StartupTask? startupTask;
-
-        public bool GetEnabled()
-        {
-            startupTask ??= Task.Run(async () => await StartupTask.GetAsync("RunCatStartup")).Result;
-            if (startupTask is null) return false;
-            if (startupTask.State == StartupTaskState.Enabled) return true;
-            return false;
-        }
-
-        public bool SetEnabled(bool enabled)
-        {
-            startupTask ??= Task.Run(async () => await StartupTask.GetAsync("RunCatStartup")).Result;
-            if (enabled)
-            {
-                if (startupTask.State == StartupTaskState.Enabled) startupTask.Disable();
-                return true;
-            }
-            else
-            {
-                switch (startupTask.State)
-                {
-                    case StartupTaskState.Enabled:
-                        return true;
-                    case StartupTaskState.Disabled:
-                        var newStartupState = Task.Run(async () => await startupTask.RequestEnableAsync()).Result;
-                        if (newStartupState == StartupTaskState.Enabled)
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("Launch at Startup could not be activated.");
-                        }
-                    case StartupTaskState.DisabledByUser:
-                        throw new InvalidOperationException("Launch at startup was disabled by the user, enable it in Task Manager > Startup, search RunCat 365 and enable it.");
-                    case StartupTaskState.DisabledByPolicy:
-                        throw new InvalidOperationException("Launch at startup was disabled by policy.");
-                    default:
-                        return false;
-                }
-            }
-        }
-    }
-
-    internal sealed class UnpackagedLaunchAtStartupManager : ILaunchAtStartupManager
-    {
-        public bool GetEnabled()
-        {
-            var keyName = @"Software\Microsoft\Windows\CurrentVersion\Run";
-            using var rKey = Registry.CurrentUser.OpenSubKey(keyName);
-            if (rKey is null) return false;
-            var value = (rKey.GetValue(Application.ProductName) is not null);
-            rKey.Close();
-            return value;
-        }
-
-        public bool SetEnabled(bool enabled)
-        {
-            var productName = Application.ProductName;
-            if (productName is null) return false;
-            var keyName = @"Software\Microsoft\Windows\CurrentVersion\Run";
-            using var rKey = Registry.CurrentUser.OpenSubKey(keyName, true);
-            if (rKey is null) return false;
-            if (enabled)
-            {
-                rKey.DeleteValue(productName, false);
-            }
-            else
-            {
-                var fileName = Environment.ProcessPath;
-                if (fileName is not null)
-                {
-                    rKey.SetValue(productName, fileName);
-                }
-            }
-            rKey.Close();
-            return true;
-        }
-    }
-
     internal class LaunchAtStartupManager
     {
-        private readonly ILaunchAtStartupManager _launchAtStartupManager;
+        private readonly string _shortcutPath;
 
         public LaunchAtStartupManager()
         {
-            _launchAtStartupManager = IsRunningAsPackaged()
-                ? new PackagedLaunchAtStartupManager()
-                : new UnpackagedLaunchAtStartupManager();
+            var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+            _shortcutPath = Path.Combine(startupFolder, "RunCat 365.lnk");
         }
 
-        public bool GetStartup() => _launchAtStartupManager.GetEnabled();
+        public bool GetStartup() => File.Exists(_shortcutPath);
 
-        public bool SetStartup(bool enabled) => _launchAtStartupManager.SetEnabled(enabled);
-
-        private static bool IsRunningAsPackaged()
+        public bool SetStartup(bool enabled)
         {
             try
             {
-                _ = Package.Current;
+                if (enabled)
+                {
+                    return CreateShortcut();
+                }
+                else
+                {
+                    File.Delete(_shortcutPath);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool CreateShortcut()
+        {
+            var exePath = Environment.ProcessPath;
+            if (exePath is null) return false;
+
+            try
+            {
+                dynamic wsh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!)!;
+                dynamic shortcut = wsh.CreateShortcut(_shortcutPath)!;
+                shortcut.TargetPath = exePath;
+                shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
+                shortcut.Description = "RunCat 365";
+                shortcut.Save();
                 return true;
             }
-            catch (InvalidOperationException)
+            catch
             {
                 return false;
             }
