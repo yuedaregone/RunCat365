@@ -12,22 +12,26 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
+using Hardcodet.Wpf.TaskbarNotification;
 using RunCat365.Properties;
-using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace RunCat365
 {
     internal class ContextMenuManager : IDisposable
     {
-        private readonly CustomToolStripMenuItem systemInfoMenu = new();
-        private readonly NotifyIcon notifyIcon = new();
-        private readonly List<Icon> trayIcons = [];
-        private readonly Lock trayIconLock = new();
-        private int currentTrayIcon = 0;
-        private Runner currentRunner = Runner.Cat;
+        private readonly TaskbarIcon taskbarIcon;
+        private readonly TextBlock systemInfoText;
+        private readonly MenuItem runnersMenu;
+        private readonly Func<Runner> getRunner;
+        private readonly Action<Runner> setRunner;
+        private readonly System.Windows.Media.FontFamily menuFont;
+
+        private const double MenuFontSize = 13;
 
         internal ContextMenuManager(
             Func<Runner> getRunner,
@@ -43,259 +47,197 @@ namespace RunCat365
             Action resetTomatoClock
         )
         {
-            systemInfoMenu.Text = "-\n-\n-\n-\n-";
-            systemInfoMenu.Enabled = false;
+            this.getRunner = getRunner;
+            this.setRunner = setRunner;
+            menuFont = new System.Windows.Media.FontFamily(SupportedLanguageExtension.GetCurrentLanguage().GetFontName());
 
-            var runnersMenu = new CustomToolStripMenuItem(Strings.Menu_Runner);
-            runnersMenu.SetupSubMenusFromEnum<Runner>(
-                r => r.GetLocalizedString(),
-                (parent, sender, e) =>
-                {
-                    HandleMenuItemSelection<Runner>(
-                        parent,
-                        sender,
-                        (string? s, out Runner r) => Enum.TryParse(s, out r),
-                        r => setRunner(r)
-                    );
-                    SetTrayIcons(getRunner());
-                },
-                r => getRunner() == r,
-                r => GetRunnerThumbnailBitmap(r)
-            );
-
-            var launchAtStartupMenu = new CustomToolStripMenuItem(Strings.Menu_LaunchAtStartup)
+            systemInfoText = new TextBlock
             {
-                Checked = getLaunchAtStartup()
+                Text = "-\n-\n-\n-\n-",
+                IsEnabled = false,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                FontFamily = menuFont,
+                FontSize = MenuFontSize
             };
-            launchAtStartupMenu.Click += (sender, e) => HandleStartupMenuClick(sender, toggleLaunchAtStartup);
 
-            var tomatoClockStartMenu = new CustomToolStripMenuItem("Start");
+            runnersMenu = CreateRunnersMenu();
+
+            var launchAtStartupMenu = CreateMenuItem(Strings.Menu_LaunchAtStartup, getLaunchAtStartup());
+            launchAtStartupMenu.IsCheckable = true;
+            launchAtStartupMenu.Click += (sender, e) =>
+            {
+                try
+                {
+                    if (toggleLaunchAtStartup(launchAtStartupMenu.IsChecked == true))
+                    {
+                        launchAtStartupMenu.IsChecked = !launchAtStartupMenu.IsChecked;
+                    }
+                }
+                catch (InvalidOperationException ex)
+                {
+                    MessageBox.Show(ex.Message, Strings.Message_Warning, MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+
+            var tomatoClockStartMenu = CreateMenuItem("Start");
             tomatoClockStartMenu.Click += (sender, e) => startTomatoClock();
-            
-            var tomatoClockPauseMenu = new CustomToolStripMenuItem("Pause");
+
+            var tomatoClockPauseMenu = CreateMenuItem("Pause");
             tomatoClockPauseMenu.Click += (sender, e) => pauseTomatoClock();
-            
-            var tomatoClockResetMenu = new CustomToolStripMenuItem("Reset");
+
+            var tomatoClockResetMenu = CreateMenuItem("Reset");
             tomatoClockResetMenu.Click += (sender, e) => resetTomatoClock();
-            
-            var tomatoClockDurationMenu = new CustomToolStripMenuItem("Duration (minutes)");
+
+            var tomatoClockDurationMenu = CreateMenuItem("Duration (minutes)");
             var durations = new[] { 15, 20, 25, 30, 45, 60 };
             foreach (var duration in durations)
             {
-                var durationItem = new CustomToolStripMenuItem($"{duration} min");
-                durationItem.Click += (sender, e) =>
-                {
-                    setTomatoClockDuration(duration);
-                };
-                tomatoClockDurationMenu.DropDownItems.Add(durationItem);
+                var durationItem = CreateMenuItem($"{duration} min");
+                durationItem.Click += (sender, e) => setTomatoClockDuration(duration);
+                tomatoClockDurationMenu.Items.Add(durationItem);
             }
 
-            var settingsMenu = new CustomToolStripMenuItem(Strings.Menu_Settings);
-            settingsMenu.DropDownItems.AddRange(
-                launchAtStartupMenu,
-                new ToolStripSeparator(),
-                tomatoClockStartMenu,
-                tomatoClockPauseMenu,
-                tomatoClockResetMenu,
-                tomatoClockDurationMenu
-            );
+            var settingsMenu = CreateMenuItem(Strings.Menu_Settings);
+            settingsMenu.Items.Add(launchAtStartupMenu);
+            settingsMenu.Items.Add(new Separator());
+            settingsMenu.Items.Add(tomatoClockStartMenu);
+            settingsMenu.Items.Add(tomatoClockPauseMenu);
+            settingsMenu.Items.Add(tomatoClockResetMenu);
+            settingsMenu.Items.Add(tomatoClockDurationMenu);
 
-            var exitMenu = new CustomToolStripMenuItem(Strings.Menu_Exit);
+            var exitMenu = CreateMenuItem(Strings.Menu_Exit);
             exitMenu.Click += (sender, e) => onExit();
 
-            var contextMenuStrip = new ContextMenuStrip(new Container());
-            contextMenuStrip.Items.AddRange(
-                systemInfoMenu,
-                new ToolStripSeparator(),
-                runnersMenu,
-                new ToolStripSeparator(),
-                settingsMenu,
-                new ToolStripSeparator(),
-                exitMenu
-            );
-            contextMenuStrip.Renderer = new ContextMenuRenderer();
+            var contextMenu = new ContextMenu();
+            TextOptions.SetTextFormattingMode(contextMenu, TextFormattingMode.Display);
+            TextOptions.SetTextRenderingMode(contextMenu, TextRenderingMode.ClearType);
+            contextMenu.Items.Add(systemInfoText);
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(runnersMenu);
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(settingsMenu);
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(exitMenu);
 
-            SetTrayIcons(getRunner());
-
-            var exePath = Environment.ProcessPath ?? AppDomain.CurrentDomain.BaseDirectory;
-            notifyIcon.Icon = Icon.ExtractAssociatedIcon(exePath);
-
-            notifyIcon.Visible = true;
-            notifyIcon.ContextMenuStrip = contextMenuStrip;
-        }
-
-        private static void HandleMenuItemSelection<T>(
-            ToolStripMenuItem parentMenu,
-            object? sender,
-            CustomTryParseDelegate<T> tryParseMethod,
-            Action<T> assignValueAction
-        )
-        {
-            if (sender is null) return;
-            var item = (ToolStripMenuItem)sender;
-            foreach (ToolStripMenuItem childItem in parentMenu.DropDownItems)
-            {
-                childItem.Checked = false;
-            }
-            item.Checked = true;
-
-            if (item.Tag is T tagValue)
-            {
-                assignValueAction(tagValue);
-            }
-            else if (tryParseMethod(item.Text, out T parsedValue))
-            {
-                assignValueAction(parsedValue);
-            }
-        }
-
-        private static Bitmap? GetRunnerThumbnailBitmap(Runner runner)
-        {
-            var iconName = $"{runner.GetString()}_0".ToLower();
-            var obj = Resources.ResourceManager.GetObject(iconName);
-            if (obj is not Bitmap bitmap) return null;
-            return bitmap;
-        }
-
-        internal void SetTrayIcons(Runner runner)
-        {
-            var runnerName = runner.GetString();
-            var capacity = runner.GetFrameNumber();
-            var list = new List<Icon>(capacity);
-            for (int i = 0; i < capacity; i++)
-            {
-                var iconName = $"{runnerName}_{i}".ToLower();
-                if (Resources.ResourceManager.GetObject(iconName) is not Bitmap bitmap) continue;
-                list.Add(BitmapToIcon(bitmap));
-            }
-
-            lock (trayIconLock)
-            {
-                trayIcons.Clear();
-                trayIcons.AddRange(list);
-                currentTrayIcon = 0;
-            }
-
-            currentRunner = runner;
-        }
-
-        internal (int frameWidth, int frameHeight) GetFrameDimensions(Runner runner)
-        {
-            var runnerName = runner.GetString();
-            var iconName = $"{runnerName}_0".ToLower();
-            var obj = Resources.ResourceManager.GetObject(iconName);
-            if (obj is not Bitmap bitmap) return (48, 48);
-            return (bitmap.Width, bitmap.Height);
-        }
-
-        private static Icon BitmapToIcon(Bitmap bitmap)
-        {
-            using var pngStream = new MemoryStream();
-            bitmap.Save(pngStream, ImageFormat.Png);
-            var pngData = pngStream.ToArray();
-
-            using var icoStream = new MemoryStream();
-            using var bw = new BinaryWriter(icoStream);
-
-            bw.Write((short)0);
-            bw.Write((short)1);
-            bw.Write((short)1);
-
-            bw.Write((byte)(bitmap.Width >= 256 ? 0 : bitmap.Width));
-            bw.Write((byte)(bitmap.Height >= 256 ? 0 : bitmap.Height));
-            bw.Write((byte)0);
-            bw.Write((byte)0);
-            bw.Write((short)1);
-            bw.Write((short)32);
-            bw.Write(pngData.Length);
-            bw.Write(22);
-
-            bw.Write(pngData);
-
-            icoStream.Position = 0;
-            return new Icon(icoStream);
-        }
-
-        private static void HandleStartupMenuClick(object? sender, Func<bool, bool> toggleLaunchAtStartup)
-        {
-            if (sender is null) return;
-            var item = (ToolStripMenuItem)sender;
+            System.Drawing.Icon? icon = null;
             try
             {
-                if (toggleLaunchAtStartup(item.Checked))
+                using var stream = ResourceLoader.Assembly.GetManifestResourceStream("RunCat365.resources.app_icon.ico");
+                if (stream is not null)
                 {
-                    item.Checked = !item.Checked;
+                    icon = new System.Drawing.Icon(stream);
                 }
             }
-            catch (InvalidOperationException ex)
+            catch { }
+
+            if (icon is null)
             {
-                System.Windows.Forms.MessageBox.Show(ex.Message, Strings.Message_Warning, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                icon = new System.Drawing.Icon(SystemIcons.Application, 16, 16);
+            }
+
+            taskbarIcon = new TaskbarIcon
+            {
+                Icon = icon,
+                ContextMenu = contextMenu,
+                Visibility = Visibility.Visible
+            };
+        }
+
+        private MenuItem CreateMenuItem(string header, bool isChecked = false)
+        {
+            return new MenuItem
+            {
+                Header = header,
+                IsChecked = isChecked,
+                FontFamily = menuFont,
+                FontSize = MenuFontSize
+            };
+        }
+
+        private MenuItem CreateRunnersMenu()
+        {
+            var menu = CreateMenuItem(Strings.Menu_Runner);
+
+            foreach (Runner runner in Enum.GetValues(typeof(Runner)))
+            {
+                var item = new MenuItem
+                {
+                    Header = runner.GetLocalizedString(),
+                    IsCheckable = true,
+                    IsChecked = getRunner() == runner,
+                    FontFamily = menuFont,
+                    FontSize = MenuFontSize,
+                    Tag = runner
+                };
+
+                var thumbnail = GetRunnerThumbnailBitmap(runner);
+                if (thumbnail != null)
+                {
+                    item.Icon = new System.Windows.Controls.Image { Source = thumbnail, Width = 16, Height = 16 };
+                }
+
+                item.Click += (sender, e) =>
+                {
+                    foreach (MenuItem childItem in menu.Items)
+                    {
+                        childItem.IsChecked = false;
+                    }
+                    item.IsChecked = true;
+
+                    if (item.Tag is Runner selectedRunner)
+                    {
+                        setRunner(selectedRunner);
+                    }
+                };
+
+                menu.Items.Add(item);
+            }
+
+            return menu;
+        }
+
+        private static BitmapImage? GetRunnerThumbnailBitmap(Runner runner)
+        {
+            var resourceName = $"RunCat365.resources.runners.{runner.GetString().ToLower()}.{runner.GetString().ToLower()}_0.png";
+
+            try
+            {
+                using var stream = ResourceLoader.Assembly.GetManifestResourceStream(resourceName);
+                if (stream is null) return null;
+
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.StreamSource = stream;
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+            catch
+            {
+                return null;
             }
         }
 
         internal void ShowBalloonTip(BalloonTipType balloonTipType)
         {
             var info = balloonTipType.GetInfo();
-            notifyIcon.ShowBalloonTip(5000, info.Title, info.Text, info.Icon);
-        }
-
-        internal Icon? GetCurrentTrayIcon()
-        {
-            lock (trayIconLock)
-            {
-                if (trayIcons.Count == 0) return null;
-                return trayIcons[currentTrayIcon];
-            }
-        }
-
-        internal void AdvanceTrayIcon()
-        {
-            lock (trayIconLock)
-            {
-                if (trayIcons.Count == 0) return;
-                if (trayIcons.Count <= currentTrayIcon) currentTrayIcon = 0;
-                currentTrayIcon = (currentTrayIcon + 1) % trayIcons.Count;
-            }
+            taskbarIcon.ShowBalloonTip(info.Title, info.Text, BalloonIcon.Info);
         }
 
         internal void SetSystemInfoMenuText(string text)
         {
-            systemInfoMenu.Text = text;
+            systemInfoText.Text = text;
         }
 
         internal void SetNotifyIconText(string text)
         {
-            notifyIcon.Text = text;
-        }
-
-        internal void HideNotifyIcon()
-        {
-            notifyIcon.Visible = false;
+            taskbarIcon.ToolTipText = text;
         }
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            taskbarIcon.Dispose();
         }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                lock (trayIconLock)
-                {
-                    trayIcons.Clear();
-                }
-
-                if (notifyIcon is not null)
-                {
-                    notifyIcon.ContextMenuStrip?.Dispose();
-                    notifyIcon.Dispose();
-                }
-            }
-        }
-
-        private delegate bool CustomTryParseDelegate<T>(string? value, out T result);
     }
 }

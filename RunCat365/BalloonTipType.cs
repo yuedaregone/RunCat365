@@ -16,17 +16,15 @@ using RunCat365.Properties;
 
 namespace RunCat365
 {
-    internal readonly struct BalloonTipInfo(string title, string text, ToolTipIcon icon)
+    internal readonly struct BalloonTipInfo(string title, string text)
     {
         internal string Title { get; } = title;
         internal string Text { get; } = text;
-        internal ToolTipIcon Icon { get; } = icon;
     }
 
     internal enum BalloonTipType
     {
         AppLaunched,
-        CPUInfoUnavailable,
     }
 
     internal static class BalloonTipTypeExtension
@@ -35,9 +33,8 @@ namespace RunCat365
         {
             return balloonTipType switch
             {
-                BalloonTipType.AppLaunched => new("RunCat 365", Strings.Message_AppLaunched, ToolTipIcon.Info),
-                BalloonTipType.CPUInfoUnavailable => new(Strings.Message_Warning, Strings.Message_CPUUsageUnavailable, ToolTipIcon.Warning),
-                _ => new("RunCat 365", string.Empty, ToolTipIcon.None),
+                BalloonTipType.AppLaunched => new("RunCat 365", Strings.Message_AppLaunched),
+                _ => new("RunCat 365", string.Empty),
             };
         }
     }

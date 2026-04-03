@@ -38,8 +38,8 @@ namespace RunCat365
 
             try
             {
-                var app = new System.Windows.Application();
-                var context = new RunCat365ApplicationContext();
+                var app = new Application();
+                app.Startup += App_Startup;
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 app.Run();
             }
@@ -47,6 +47,11 @@ namespace RunCat365
             {
                 procMutex?.ReleaseMutex();
             }
+        }
+
+        private static void App_Startup(object sender, StartupEventArgs e)
+        {
+            _ = new RunCat365ApplicationContext();
         }
     }
 
@@ -87,8 +92,7 @@ namespace RunCat365
             animationEngine.FrameChanged += AnimationEngine_FrameChanged;
             animationEngine.SetTomatoClock(() => tomatoClock.GetProgress());
 
-            floatingWindow = new FloatingWindow(() => tomatoClock.GetProgress());
-            floatingWindow.MovementSpeedBase = UserSettings.Default.MovementSpeedBase;
+            floatingWindow = new FloatingWindow();
             
             contextMenuManager = new ContextMenuManager(
                 () => runner,
@@ -137,41 +141,32 @@ namespace RunCat365
             int maxHeight = 0;
             for (int i = 0; i < frameCount; i++)
             {
-                var iconName = $"{runnerName}_{i}".ToLower();
-                if (Resources.ResourceManager.GetObject(iconName) is not System.Drawing.Bitmap bmp) continue;
-                if (bmp.Width > maxWidth) maxWidth = bmp.Width;
-                if (bmp.Height > maxHeight) maxHeight = bmp.Height;
+                var pixels = ResourceLoader.GetRunnerPixels(runnerName, i, out var w, out var h);
+                if (pixels is null) continue;
+                if (w > maxWidth) maxWidth = w;
+                if (h > maxHeight) maxHeight = h;
             }
 
-            var spritesheet = new System.Windows.Media.Imaging.WriteableBitmap(
+            if (maxWidth == 0 || maxHeight == 0)
+            {
+                maxWidth = 48;
+                maxHeight = 48;
+            }
+
+            var spritesheet = new WriteableBitmap(
                 frameCount * maxWidth, maxHeight, 96, 96,
                 System.Windows.Media.PixelFormats.Bgra32, null);
 
             for (int i = 0; i < frameCount; i++)
             {
-                var iconName = $"{runnerName}_{i}".ToLower();
-                if (Resources.ResourceManager.GetObject(iconName) is not System.Drawing.Bitmap bitmap) continue;
+                var pixels = ResourceLoader.GetRunnerPixels(runnerName, i, out var w, out var h);
+                if (pixels is null) continue;
 
-                int offsetX = (maxWidth - bitmap.Width) / 2;
-                int offsetY = (maxHeight - bitmap.Height) / 2;
+                int offsetX = (maxWidth - w) / 2;
+                int offsetY = (maxHeight - h) / 2;
 
-                var rect = new System.Windows.Int32Rect(i * maxWidth + offsetX, offsetY, bitmap.Width, bitmap.Height);
-                var bitmapData = bitmap.LockBits(
-                    new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                    System.Drawing.Imaging.ImageLockMode.ReadOnly,
-                    System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-                try
-                {
-                    var stride = bitmapData.Stride;
-                    var pixels = new byte[stride * bitmap.Height];
-                    System.Runtime.InteropServices.Marshal.Copy(bitmapData.Scan0, pixels, 0, pixels.Length);
-                    spritesheet.WritePixels(rect, pixels, stride, 0);
-                }
-                finally
-                {
-                    bitmap.UnlockBits(bitmapData);
-                }
+                var rect = new Int32Rect(i * maxWidth + offsetX, offsetY, w, h);
+                spritesheet.WritePixels(rect, pixels, w * 4, 0);
             }
 
             spritesheet.Freeze();
@@ -181,17 +176,12 @@ namespace RunCat365
         private void AnimationEngine_FrameChanged(object? sender, int frameIndex)
         {
             floatingWindow.SetFrame(frameIndex);
-contextMenuManager.AdvanceTrayIcon();
-            var trayIcon = contextMenuManager.GetCurrentTrayIcon();
-            if (trayIcon is not null)
-            {
-            }
         }
 
         private void ExitApplication()
         {
             Dispose();
-            System.Windows.Application.Current.Shutdown();
+            Application.Current.Shutdown();
         }
 
         private void ShowBalloonTipIfNeeded()
@@ -281,7 +271,7 @@ contextMenuManager.AdvanceTrayIcon();
             floatingWindow.LoadSpritesheet(spritesheet, frameWidth, frameHeight);
         }
 
-public void Dispose()
+        public void Dispose()
         {
             tomatoTimer.Stop();
             animationEngine.Stop();

@@ -12,17 +12,18 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
+using System.Windows.Threading;
+
 namespace RunCat365
 {
-    internal class TomatoClock
+    internal class TomatoClock : IDisposable
     {
-        private readonly System.Windows.Forms.Timer timer;
+        private readonly DispatcherTimer timer;
         private int totalSeconds;
         private int remainingSeconds;
         private bool isRunning;
         private bool isCompleted;
 
-        public event EventHandler? Tick;
         public event EventHandler? Completed;
 
         public int DurationMinutes { get; private set; } = 25;
@@ -32,9 +33,9 @@ namespace RunCat365
 
         public TomatoClock()
         {
-            timer = new System.Windows.Forms.Timer
+            timer = new DispatcherTimer
             {
-                Interval = 1000 // 1 second
+                Interval = TimeSpan.FromSeconds(1)
             };
             timer.Tick += Timer_Tick;
         }
@@ -79,14 +80,12 @@ namespace RunCat365
             if (totalSeconds == 0) return 1f;
             return 1f - ((float)remainingSeconds / totalSeconds);
         }
-      
 
         private void Timer_Tick(object? sender, EventArgs e)
         {
             if (!isRunning) return;
 
             remainingSeconds--;
-            Tick?.Invoke(this, EventArgs.Empty);
 
             if (remainingSeconds <= 0)
             {
@@ -99,8 +98,7 @@ namespace RunCat365
 
         public void Dispose()
         {
-            timer?.Stop();
-            timer?.Dispose();
+            timer.Stop();
         }
     }
 }

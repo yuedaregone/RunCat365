@@ -16,7 +16,7 @@ using System.Globalization;
 
 namespace RunCat365
 {
-    enum SupportedLanguage
+    internal enum SupportedLanguage
     {
         ChineseSimplified,
         ChineseTraditional,
@@ -75,20 +75,6 @@ namespace RunCat365
                 SupportedLanguage.Japanese => "Noto Sans JP",
                 SupportedLanguage.Spanish => "Consolas",
                 _ => "Consolas",
-            };
-        }
-
-        internal static bool IsFullWidth(this SupportedLanguage language)
-        {
-            return language switch
-            {
-                SupportedLanguage.ChineseSimplified => true,
-                SupportedLanguage.ChineseTraditional => true,
-                SupportedLanguage.French => false,
-                SupportedLanguage.German => false,
-                SupportedLanguage.Japanese => true,
-                SupportedLanguage.Spanish => false,
-                _ => false,
             };
         }
     }

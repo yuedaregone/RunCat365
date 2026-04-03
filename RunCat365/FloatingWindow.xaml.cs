@@ -28,7 +28,6 @@ namespace RunCat365
         private readonly WpfRectangle _rectangle;
         private readonly ImageBrush _brush;
         private readonly Canvas _canvas;
-        private readonly Func<double> _getProgress;
         private readonly DispatcherTimer _moveTimer;
         private BitmapSource? _spritesheet;
         private int _frameWidth = 48;
@@ -36,13 +35,6 @@ namespace RunCat365
         private bool _userPositioned;
 
         private float _currentSpeed;
-        private int _direction = 1;
-
-        public double MovementSpeedBase
-        {
-            get => _currentSpeed;
-            set => _currentSpeed = (float)value;
-        }
 
         public void SetSpeed(object? sender, float speed)
         {
@@ -53,7 +45,7 @@ namespace RunCat365
         {
             if (_currentSpeed <= 0) return;
 
-            Left += _currentSpeed * _direction;
+            Left += _currentSpeed;
 
             double screenWidth = SystemParameters.PrimaryScreenWidth;
             if (Left > screenWidth)
@@ -66,10 +58,8 @@ namespace RunCat365
             }
         }
 
-        public FloatingWindow(Func<double> getProgress)
+        public FloatingWindow()
         {
-            _getProgress = getProgress;
-
             _moveTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(16)
@@ -123,31 +113,21 @@ namespace RunCat365
             bool taskbarOnRight = workArea.Right < screenWidth;
             bool taskbarOnBottom = workArea.Bottom < screenHeight;
 
-            if (taskbarOnBottom)
+            if (taskbarOnLeft || taskbarOnRight)
             {
                 Top = workArea.Bottom - Height;
+                Left = workArea.Left + (workArea.Width - Width) / 2;
+            }
+            else if (taskbarOnBottom)
+            {
+                Top = workArea.Bottom - Height;
+                Left = workArea.Left + (workArea.Width - Width) / 2;
             }
             else
             {
                 Top = workArea.Top;
-            }
-
-            if (taskbarOnLeft)
-            {
-                Top = workArea.Bottom - Height;
                 Left = workArea.Left + (workArea.Width - Width) / 2;
             }
-            else if (taskbarOnRight)
-            {
-                Top = workArea.Bottom - Height;
-                Left = workArea.Left + (workArea.Width - Width) / 2;
-            }
-            else
-            {
-                Left = workArea.Left + (workArea.Width - Width) / 2;
-            }
-
-            _direction = 1;
         }
 
         public void LoadSpritesheet(BitmapSource spritesheet, int frameWidth, int frameHeight)

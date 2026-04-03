@@ -15,6 +15,7 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using RunCat365.Properties;
 
 namespace RunCat365
 {
@@ -26,21 +27,18 @@ namespace RunCat365
         private int _frameCount;
         private int _currentFrame;
         private double _intervalMs = 200;
-        private DateTime _lastFrameTime = DateTime.MinValue;
+        private long _lastFrameTime;
         private bool _isRunning;
         private Func<double>? _getTomatoProgress;
-        
+        private float _maxSpeed;
 
         public event EventHandler<int>? FrameChanged;
         public event EventHandler<float>? SpeedChanged;
-        
-        private const float MaxSpeed = 8f;
 
-        public BitmapSource? Spritesheet => _spritesheet;
-        public int FrameWidth => _frameWidth;
-        public int FrameHeight => _frameHeight;
-        public int FrameCount => _frameCount;
-        public int CurrentFrame => _currentFrame;
+        public FrameAnimationEngine()
+        {
+            _maxSpeed = (float)UserSettings.Default.MovementSpeedBase;
+        }
 
         public void SetTomatoClock(Func<double> getTomatoProgress)
         {
@@ -56,18 +54,11 @@ namespace RunCat365
             _currentFrame = 0;
         }
 
-        public void SetSpeed(double progress)
-        {
-            float minInterval = 25f;
-            float maxInterval = 500f;
-            _intervalMs = maxInterval - (progress * (maxInterval - minInterval));
-        }
-
         public void Start()
         {
             if (_isRunning) return;
             _isRunning = true;
-            _lastFrameTime = DateTime.Now;
+            _lastFrameTime = Environment.TickCount64;
             CompositionTarget.Rendering += OnRendering;
         }
 
@@ -87,12 +78,12 @@ namespace RunCat365
             if (!_isRunning || _spritesheet is null) return;
 
             double progress = _getTomatoProgress?.Invoke() ?? 0;
-            
-            _intervalMs = 500 - (progress * 475);
-            float speed = (float)(MaxSpeed * progress);
 
-            var now = DateTime.Now;
-            if ((now - _lastFrameTime).TotalMilliseconds < _intervalMs) return;
+            _intervalMs = 500 - (progress * 475);
+            float speed = (float)(_maxSpeed * progress);
+
+            var now = Environment.TickCount64;
+            if ((now - _lastFrameTime) < (long)_intervalMs) return;
 
             _lastFrameTime = now;
             _currentFrame = (_currentFrame + 1) % _frameCount;

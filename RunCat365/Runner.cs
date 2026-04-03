@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Takuto Nakamura
+// Copyright 2025 Takuto Nakamura
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ using RunCat365.Properties;
 
 namespace RunCat365
 {
-    enum Runner
+    internal enum Runner
     {
         Cat,
         Parrot,

@@ -1,10 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
@@ -39,6 +38,7 @@
 
   <ItemGroup>
     <EmbeddedResource Remove="EndlessGameForm.resx" />
+    <EmbeddedResource Remove="Properties\Resources.resx" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,7 +48,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="resources\app_icon.ico" />
+    <EmbeddedResource Include="resources\app_icon.ico" />
+    <EmbeddedResource Include="resources\runners\cat\cat_0.png" />
+    <EmbeddedResource Include="resources\runners\cat\cat_1.png" />
+    <EmbeddedResource Include="resources\runners\cat\cat_2.png" />
+    <EmbeddedResource Include="resources\runners\cat\cat_3.png" />
+    <EmbeddedResource Include="resources\runners\cat\cat_4.png" />
+    <EmbeddedResource Include="resources\runners\horse\horse_0.png" />
+    <EmbeddedResource Include="resources\runners\horse\horse_1.png" />
+    <EmbeddedResource Include="resources\runners\horse\horse_2.png" />
+    <EmbeddedResource Include="resources\runners\horse\horse_3.png" />
+    <EmbeddedResource Include="resources\runners\horse\horse_4.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_0.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_1.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_2.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_3.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_4.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_5.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_6.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_7.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_8.png" />
+    <EmbeddedResource Include="resources\runners\parrot\parrot_9.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -67,11 +87,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Update="Properties\UserSettings.Designer.cs">
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <AutoGen>True</AutoGen>
@@ -80,17 +95,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="Properties\UserSettings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>UserSettings.Designer.cs</LastGenOutput>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
   </ItemGroup>
 
   <Target Name="RemoveWinRTAssemblies" AfterTargets="ResolveAssemblyReferences">
