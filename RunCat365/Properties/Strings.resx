@@ -88,4 +88,16 @@
   <data name="Runner_Horse" xml:space="preserve">
     <value>Horse</value>
   </data>
+  <data name="Menu_TomatoClockStart" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="Menu_TomatoClockPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Menu_TomatoClockReset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Menu_TomatoClockDuration" xml:space="preserve">
+    <value>Duration (minutes)</value>
+  </data>
 </root>

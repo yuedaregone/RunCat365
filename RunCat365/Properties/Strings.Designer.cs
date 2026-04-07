@@ -383,5 +383,29 @@ namespace RunCat365.Properties {
                 return ResourceManager.GetString("Message_CPUUsageUnavailable", resourceCulture);
             }
         }
+
+        internal static string Menu_TomatoClockStart {
+            get {
+                return ResourceManager.GetString("Menu_TomatoClockStart", resourceCulture);
+            }
+        }
+
+        internal static string Menu_TomatoClockPause {
+            get {
+                return ResourceManager.GetString("Menu_TomatoClockPause", resourceCulture);
+            }
+        }
+
+        internal static string Menu_TomatoClockReset {
+            get {
+                return ResourceManager.GetString("Menu_TomatoClockReset", resourceCulture);
+            }
+        }
+
+        internal static string Menu_TomatoClockDuration {
+            get {
+                return ResourceManager.GetString("Menu_TomatoClockDuration", resourceCulture);
+            }
+        }
     }
 }

@@ -66,16 +66,16 @@ namespace RunCat365
                 }
             };
 
-            MenuItem tomatoClockStartMenu = CreateMenuItem("Start");
+            MenuItem tomatoClockStartMenu = CreateMenuItem(Strings.Menu_TomatoClockStart);
             tomatoClockStartMenu.Click += (sender, e) => startTomatoClock();
 
-            MenuItem tomatoClockPauseMenu = CreateMenuItem("Pause");
+            MenuItem tomatoClockPauseMenu = CreateMenuItem(Strings.Menu_TomatoClockPause);
             tomatoClockPauseMenu.Click += (sender, e) => pauseTomatoClock();
 
-            MenuItem tomatoClockResetMenu = CreateMenuItem("Reset");
+            MenuItem tomatoClockResetMenu = CreateMenuItem(Strings.Menu_TomatoClockReset);
             tomatoClockResetMenu.Click += (sender, e) => resetTomatoClock();
 
-            MenuItem tomatoClockDurationMenu = CreateMenuItem("Duration (minutes)");
+            MenuItem tomatoClockDurationMenu = CreateMenuItem(Strings.Menu_TomatoClockDuration);
             int[] durations = new[] { 15, 20, 25, 30, 45, 60 };
             foreach (int duration in durations)
             {

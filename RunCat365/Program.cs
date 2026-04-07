@@ -275,6 +275,7 @@ namespace RunCat365
             config.Runner = runner.ToString();
             config.Save();
             RegenerateSpritesheet();
+            floatingWindow.SetFrameMoveRatios(r);
         }
 
         private void ChangeTomatoClockDuration(int duration)
