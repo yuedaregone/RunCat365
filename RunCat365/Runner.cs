@@ -2,7 +2,7 @@ using RunCat365.Properties;
 
 namespace RunCat365
 {
-    internal enum Runner
+    public enum Runner
     {
         Cat,
         Parrot,

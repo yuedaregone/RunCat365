@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using RunCat365.Runners;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
 
 namespace RunCat365
@@ -20,17 +21,36 @@ namespace RunCat365
         private int frameHeight = 48;
         private bool userPositioned;
         private float currentSpeed;
+        private float[]? frameMoveRatios;
+        private int currentFrame;
 
         public void SetSpeed(object? sender, float speed)
         {
             currentSpeed = speed;
         }
 
+        public void SetFrameMoveRatios(Runner runner)
+        {
+            frameMoveRatios = runner switch
+            {
+                Runner.Cat => FrameMoveRatios.Cat,
+                Runner.Horse => FrameMoveRatios.Horse,
+                Runner.Parrot => FrameMoveRatios.Parrot,
+                _ => null
+            };
+        }
+
         private void OnMoveTimer(object? sender, EventArgs e)
         {
             if (currentSpeed <= 0) return;
 
-            Left += currentSpeed;
+            float ratio = 1.0f;
+            if (frameMoveRatios != null && currentFrame < frameMoveRatios.Length)
+            {
+                ratio = frameMoveRatios[currentFrame];
+            }
+
+            Left += currentSpeed * ratio;
 
             double screenWidth = SystemParameters.PrimaryScreenWidth;
             if (Left > screenWidth)
@@ -78,6 +98,16 @@ namespace RunCat365
             Grid grid = new Grid();
             grid.Children.Add(canvas);
             Content = grid;
+
+            string runnerName = config.Runner;
+            Runner runner = runnerName switch
+            {
+                "Cat" => Runner.Cat,
+                "Horse" => Runner.Horse,
+                "Parrot" => Runner.Parrot,
+                _ => Runner.Cat
+            };
+            SetFrameMoveRatios(runner);
         }
 
         public void StartMoveTimer()
@@ -146,6 +176,7 @@ namespace RunCat365
         {
             if (spritesheet is null) return;
 
+            currentFrame = index;
             double x = index * frameWidth;
             brush.Viewbox = new Rect(x, 0, frameWidth, frameHeight);
         }
