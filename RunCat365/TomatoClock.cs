@@ -64,8 +64,7 @@ namespace RunCat365
         public float GetProgress()
         {
             if (totalSeconds == 0) return 1f;
-            //return 1f - ((float)remainingSeconds / totalSeconds);
-            return 0.5f;
+            return 1f - ((float)remainingSeconds / totalSeconds);           
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
