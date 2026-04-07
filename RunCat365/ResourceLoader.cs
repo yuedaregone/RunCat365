@@ -65,6 +65,7 @@ namespace RunCat365
             }
             catch
             {
+                System.Diagnostics.Debug.WriteLine($"Failed to load resource: {runnerName}_{frameIndex}");
                 return null;
             }
         }

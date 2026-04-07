@@ -107,19 +107,25 @@ namespace RunCat365
             contextMenu.Items.Add(exitMenu);
 
             Icon? icon = null;
+            Icon? iconToDispose = null;
             try
             {
                 using Stream? stream = ResourceLoader.Assembly.GetManifestResourceStream("RunCat365.resources.app_icon.ico");
                 if (stream is not null)
                 {
                     icon = new Icon(stream);
+                    iconToDispose = icon;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load icon: {ex.Message}");
+            }
 
             if (icon is null)
             {
                 icon = new Icon(SystemIcons.Application, 16, 16);
+                iconToDispose = icon;
             }
 
             taskbarIcon = new TaskbarIcon
@@ -128,6 +134,9 @@ namespace RunCat365
                 ContextMenu = contextMenu,
                 Visibility = Visibility.Visible
             };
+
+            taskbarIcon.Icon = null;
+            iconToDispose?.Dispose();
         }
 
         private MenuItem CreateMenuItem(string header, bool isChecked = false)

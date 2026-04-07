@@ -407,5 +407,11 @@ namespace RunCat365.Properties {
                 return ResourceManager.GetString("Menu_TomatoClockDuration", resourceCulture);
             }
         }
+
+        internal static string Message_TomatoClockCompleted {
+            get {
+                return ResourceManager.GetString("Message_TomatoClockCompleted", resourceCulture);
+            }
+        }
     }
 }

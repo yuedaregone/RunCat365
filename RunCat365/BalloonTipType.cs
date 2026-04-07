@@ -17,6 +17,7 @@ namespace RunCat365
     internal enum BalloonTipType
     {
         AppLaunched,
+        TomatoClockCompleted,
     }
 
     internal static class BalloonTipTypeExtension
@@ -26,6 +27,7 @@ namespace RunCat365
             return balloonTipType switch
             {
                 BalloonTipType.AppLaunched => new BalloonTipInfo("RunCat 365", Strings.Message_AppLaunched),
+                BalloonTipType.TomatoClockCompleted => new BalloonTipInfo("RunCat 365", Strings.Message_TomatoClockCompleted),
                 _ => new BalloonTipInfo("RunCat 365", string.Empty),
             };
         }

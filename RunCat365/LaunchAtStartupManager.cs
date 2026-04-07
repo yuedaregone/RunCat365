@@ -49,7 +49,9 @@ namespace RunCat365
             try
             {
                 dynamic wsh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!)!;
-                dynamic shortcut = wsh.CreateShortcut(shortcutPath)!;
+                dynamic? shortcut = wsh.CreateShortcut(shortcutPath);
+                if (shortcut is null) return false;
+
                 shortcut.TargetPath = exePath;
                 shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
                 shortcut.Description = "RunCat 365";

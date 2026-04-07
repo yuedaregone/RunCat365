@@ -47,13 +47,17 @@ namespace RunCat365
             using EventWaitHandle activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ActivateEventName);
 
             RunCat365ApplicationContext? context = null;
+            using ManualResetEvent contextInitialized = new ManualResetEvent(false);
+
             app.Startup += (sender, e) =>
             {
                 context = new RunCat365ApplicationContext();
+                contextInitialized.Set();
             };
 
             ThreadPool.RegisterWaitForSingleObject(activateEvent, (state, timedOut) =>
             {
+                contextInitialized.WaitOne();
                 if (context is not null)
                 {
                     app.Dispatcher.Invoke(() => ActivateWindow(context.floatingWindow));
@@ -114,8 +118,9 @@ namespace RunCat365
                     tomatoClockDuration = config.TomatoClockDuration;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Config load error: {ex.Message}");
                 config = new AppConfig();
             }
 
@@ -137,8 +142,9 @@ namespace RunCat365
                 animationEngine.FrameChanged += AnimationEngine_FrameChanged;
                 animationEngine.SetTomatoClock(() => tomatoClock.GetProgress());
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Animation engine init error: {ex.Message}");
                 AppConfig fallbackConfig = new AppConfig();
                 animationEngine = new FrameAnimationEngine(fallbackConfig);
                 animationEngine.FrameChanged += AnimationEngine_FrameChanged;
@@ -186,8 +192,9 @@ namespace RunCat365
 
                 floatingWindow.LoadSpritesheet(spritesheetData.Item1, spritesheetData.Item2, spritesheetData.Item3);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Spritesheet generation error: {ex.Message}");
                 WriteableBitmap fallbackSpritesheet = new WriteableBitmap(
                     48, 48, 96, 96,
                     System.Windows.Media.PixelFormats.Bgra32, null);
@@ -305,6 +312,7 @@ namespace RunCat365
 
         private void TomatoClock_Completed(object? sender, EventArgs e)
         {
+            contextMenuManager.ShowBalloonTip(BalloonTipType.TomatoClockCompleted);
         }
 
         private void TomatoTimer_Tick(object? sender, EventArgs e)
@@ -348,8 +356,9 @@ namespace RunCat365
                 animationEngine.LoadSpritesheet(spritesheetData.Item1, spritesheetData.Item2, spritesheetData.Item3);
                 floatingWindow.LoadSpritesheet(spritesheetData.Item1, spritesheetData.Item2, spritesheetData.Item3);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Spritesheet regeneration error: {ex.Message}");
             }
         }
 

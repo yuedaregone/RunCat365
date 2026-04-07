@@ -100,4 +100,7 @@
   <data name="Menu_TomatoClockDuration" xml:space="preserve">
     <value>Duration (minutes)</value>
   </data>
+  <data name="Message_TomatoClockCompleted" xml:space="preserve">
+    <value>Tomato Clock completed! Take a break.</value>
+  </data>
 </root>

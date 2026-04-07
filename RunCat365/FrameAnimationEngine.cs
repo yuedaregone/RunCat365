@@ -70,7 +70,7 @@ namespace RunCat365
         {
             if (!isRunning || spritesheet is null) return;
 
-            double progress = getTomatoProgress?.Invoke() ?? 0;
+            double progress = getTomatoProgress?.Invoke() ?? 0.0;
 
             var easedProgress = ApplyEasing(progress);
             intervalMs = 500 - (easedProgress * 475);

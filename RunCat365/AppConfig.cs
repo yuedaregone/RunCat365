@@ -30,7 +30,7 @@ namespace RunCat365
                     {
                         if (instance is null)
                         {
-                            instance = Load();
+                            instance = LoadConfig();
                         }
                     }
                 }
@@ -38,7 +38,7 @@ namespace RunCat365
             }
         }
 
-        private static AppConfig Load()
+        private static AppConfig LoadConfig()
         {
             try
             {
@@ -78,7 +78,7 @@ namespace RunCat365
 
         public void Reload()
         {
-            AppConfig loadedConfig = Load();
+            AppConfig loadedConfig = LoadConfig();
             MovementSpeedBase = loadedConfig.MovementSpeedBase;
             Runner = loadedConfig.Runner;
             FirstLaunch = loadedConfig.FirstLaunch;
