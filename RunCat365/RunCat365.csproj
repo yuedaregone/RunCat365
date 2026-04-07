@@ -42,12 +42,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="resources\game\road_flat.png" />
-    <None Remove="resources\game\road_hill.png" />
-    <None Remove="resources\game\road_sprout.png" />
-  </ItemGroup>
-
-  <ItemGroup>
     <EmbeddedResource Include="resources\app_icon.ico" />
     <EmbeddedResource Include="resources\runners\cat\cat_0.png" />
     <EmbeddedResource Include="resources\runners\cat\cat_1.png" />
@@ -86,20 +80,6 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Properties\UserSettings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>UserSettings.settings</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Properties\UserSettings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>UserSettings.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />

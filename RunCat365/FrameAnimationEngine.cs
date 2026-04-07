@@ -1,94 +1,100 @@
-// Copyright 2025 Takuto Nakamura
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using RunCat365.Properties;
+using System.Windows.Threading;
 
 namespace RunCat365
 {
-    internal class FrameAnimationEngine
+    internal class FrameAnimationEngine : IDisposable
     {
-        private BitmapSource? _spritesheet;
-        private int _frameWidth;
-        private int _frameHeight;
-        private int _frameCount;
-        private int _currentFrame;
-        private double _intervalMs = 200;
-        private long _lastFrameTime;
-        private bool _isRunning;
-        private Func<double>? _getTomatoProgress;
-        private float _maxSpeed;
+        private BitmapSource? spritesheet;
+        private int frameWidth;
+        private int frameHeight;
+        private int frameCount;
+        private int currentFrame;
+        private double intervalMs = 200;
+        private long lastFrameTime;
+        private bool isRunning;
+        private Func<double>? getTomatoProgress;
+        private float maxSpeed;
+        private readonly DispatcherTimer animationTimer;
 
         public event EventHandler<int>? FrameChanged;
         public event EventHandler<float>? SpeedChanged;
 
-        public FrameAnimationEngine()
+        public FrameAnimationEngine(AppConfig config)
         {
-            _maxSpeed = (float)UserSettings.Default.MovementSpeedBase;
+            maxSpeed = (float)config.MovementSpeedBase;
+
+            animationTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            animationTimer.Tick += OnTimerTick;
         }
 
         public void SetTomatoClock(Func<double> getTomatoProgress)
         {
-            _getTomatoProgress = getTomatoProgress;
+            this.getTomatoProgress = getTomatoProgress;
         }
 
         public void LoadSpritesheet(BitmapSource spritesheet, int frameWidth, int frameHeight)
         {
-            _spritesheet = spritesheet;
-            _frameWidth = frameWidth;
-            _frameHeight = frameHeight;
-            _frameCount = spritesheet.PixelWidth / frameWidth;
-            _currentFrame = 0;
+            this.spritesheet = spritesheet;
+            this.frameWidth = frameWidth;
+            this.frameHeight = frameHeight;
+            frameCount = spritesheet.PixelWidth / frameWidth;
+            currentFrame = 0;
         }
 
         public void Start()
         {
-            if (_isRunning) return;
-            _isRunning = true;
-            _lastFrameTime = Environment.TickCount64;
-            CompositionTarget.Rendering += OnRendering;
+            if (isRunning) return;
+            isRunning = true;
+            lastFrameTime = Environment.TickCount64;
+            animationTimer.Start();
         }
 
         public void Stop()
         {
-            _isRunning = false;
-            CompositionTarget.Rendering -= OnRendering;
+            isRunning = false;
+            animationTimer.Stop();
         }
 
         public void Reset()
         {
-            _currentFrame = 0;
+            currentFrame = 0;
         }
 
-        private void OnRendering(object? sender, EventArgs e)
+        private void OnTimerTick(object? sender, EventArgs e)
         {
-            if (!_isRunning || _spritesheet is null) return;
+            if (!isRunning || spritesheet is null) return;
 
-            double progress = _getTomatoProgress?.Invoke() ?? 0;
+            double progress = getTomatoProgress?.Invoke() ?? 0;
 
-            _intervalMs = 500 - (progress * 475);
-            float speed = (float)(_maxSpeed * progress);
+            var easedProgress = ApplyEasing(progress);
+            intervalMs = 500 - (easedProgress * 475);
+            float speed = (float)(maxSpeed * easedProgress);
+
+            animationTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(intervalMs, 25));
 
             var now = Environment.TickCount64;
-            if ((now - _lastFrameTime) < (long)_intervalMs) return;
+            if ((now - lastFrameTime) < (long)intervalMs) return;
 
-            _lastFrameTime = now;
-            _currentFrame = (_currentFrame + 1) % _frameCount;
-            FrameChanged?.Invoke(this, _currentFrame);
+            lastFrameTime = now;
+            currentFrame = (currentFrame + 1) % frameCount;
+            FrameChanged?.Invoke(this, currentFrame);
             SpeedChanged?.Invoke(this, speed);
+        }
+
+        private static double ApplyEasing(double progress)
+        {
+            return progress * progress * (3 - 2 * progress);
+        }
+
+        public void Dispose()
+        {
+            animationTimer.Stop();
         }
     }
 }

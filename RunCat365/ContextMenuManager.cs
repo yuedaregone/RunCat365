@@ -1,20 +1,7 @@
-// Copyright 2025 Takuto Nakamura
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
 using Hardcodet.Wpf.TaskbarNotification;
 using RunCat365.Properties;
 using System.Drawing;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -62,7 +49,7 @@ namespace RunCat365
 
             runnersMenu = CreateRunnersMenu();
 
-            var launchAtStartupMenu = CreateMenuItem(Strings.Menu_LaunchAtStartup, getLaunchAtStartup());
+            MenuItem launchAtStartupMenu = CreateMenuItem(Strings.Menu_LaunchAtStartup, getLaunchAtStartup());
             launchAtStartupMenu.IsCheckable = true;
             launchAtStartupMenu.Click += (sender, e) =>
             {
@@ -79,25 +66,25 @@ namespace RunCat365
                 }
             };
 
-            var tomatoClockStartMenu = CreateMenuItem("Start");
+            MenuItem tomatoClockStartMenu = CreateMenuItem("Start");
             tomatoClockStartMenu.Click += (sender, e) => startTomatoClock();
 
-            var tomatoClockPauseMenu = CreateMenuItem("Pause");
+            MenuItem tomatoClockPauseMenu = CreateMenuItem("Pause");
             tomatoClockPauseMenu.Click += (sender, e) => pauseTomatoClock();
 
-            var tomatoClockResetMenu = CreateMenuItem("Reset");
+            MenuItem tomatoClockResetMenu = CreateMenuItem("Reset");
             tomatoClockResetMenu.Click += (sender, e) => resetTomatoClock();
 
-            var tomatoClockDurationMenu = CreateMenuItem("Duration (minutes)");
-            var durations = new[] { 15, 20, 25, 30, 45, 60 };
-            foreach (var duration in durations)
+            MenuItem tomatoClockDurationMenu = CreateMenuItem("Duration (minutes)");
+            int[] durations = new[] { 15, 20, 25, 30, 45, 60 };
+            foreach (int duration in durations)
             {
-                var durationItem = CreateMenuItem($"{duration} min");
+                MenuItem durationItem = CreateMenuItem($"{duration} min");
                 durationItem.Click += (sender, e) => setTomatoClockDuration(duration);
                 tomatoClockDurationMenu.Items.Add(durationItem);
             }
 
-            var settingsMenu = CreateMenuItem(Strings.Menu_Settings);
+            MenuItem settingsMenu = CreateMenuItem(Strings.Menu_Settings);
             settingsMenu.Items.Add(launchAtStartupMenu);
             settingsMenu.Items.Add(new Separator());
             settingsMenu.Items.Add(tomatoClockStartMenu);
@@ -105,10 +92,10 @@ namespace RunCat365
             settingsMenu.Items.Add(tomatoClockResetMenu);
             settingsMenu.Items.Add(tomatoClockDurationMenu);
 
-            var exitMenu = CreateMenuItem(Strings.Menu_Exit);
+            MenuItem exitMenu = CreateMenuItem(Strings.Menu_Exit);
             exitMenu.Click += (sender, e) => onExit();
 
-            var contextMenu = new ContextMenu();
+            ContextMenu contextMenu = new ContextMenu();
             TextOptions.SetTextFormattingMode(contextMenu, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(contextMenu, TextRenderingMode.ClearType);
             contextMenu.Items.Add(systemInfoText);
@@ -119,20 +106,20 @@ namespace RunCat365
             contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(exitMenu);
 
-            System.Drawing.Icon? icon = null;
+            Icon? icon = null;
             try
             {
-                using var stream = ResourceLoader.Assembly.GetManifestResourceStream("RunCat365.resources.app_icon.ico");
+                using Stream? stream = ResourceLoader.Assembly.GetManifestResourceStream("RunCat365.resources.app_icon.ico");
                 if (stream is not null)
                 {
-                    icon = new System.Drawing.Icon(stream);
+                    icon = new Icon(stream);
                 }
             }
             catch { }
 
             if (icon is null)
             {
-                icon = new System.Drawing.Icon(SystemIcons.Application, 16, 16);
+                icon = new Icon(SystemIcons.Application, 16, 16);
             }
 
             taskbarIcon = new TaskbarIcon
@@ -156,11 +143,11 @@ namespace RunCat365
 
         private MenuItem CreateRunnersMenu()
         {
-            var menu = CreateMenuItem(Strings.Menu_Runner);
+            MenuItem menu = CreateMenuItem(Strings.Menu_Runner);
 
             foreach (Runner runner in Enum.GetValues(typeof(Runner)))
             {
-                var item = new MenuItem
+                MenuItem item = new MenuItem
                 {
                     Header = runner.GetLocalizedString(),
                     IsCheckable = true,
@@ -170,7 +157,7 @@ namespace RunCat365
                     Tag = runner
                 };
 
-                var thumbnail = GetRunnerThumbnailBitmap(runner);
+                BitmapImage? thumbnail = GetRunnerThumbnailBitmap(runner);
                 if (thumbnail != null)
                 {
                     item.Icon = new System.Windows.Controls.Image { Source = thumbnail, Width = 16, Height = 16 };
@@ -198,14 +185,14 @@ namespace RunCat365
 
         private static BitmapImage? GetRunnerThumbnailBitmap(Runner runner)
         {
-            var resourceName = $"RunCat365.resources.runners.{runner.GetString().ToLower()}.{runner.GetString().ToLower()}_0.png";
+            string resourceName = $"RunCat365.resources.runners.{runner.GetString().ToLower()}.{runner.GetString().ToLower()}_0.png";
 
             try
             {
-                using var stream = ResourceLoader.Assembly.GetManifestResourceStream(resourceName);
+                using Stream? stream = ResourceLoader.Assembly.GetManifestResourceStream(resourceName);
                 if (stream is null) return null;
 
-                var image = new BitmapImage();
+                BitmapImage image = new BitmapImage();
                 image.BeginInit();
                 image.CacheOption = BitmapCacheOption.OnLoad;
                 image.StreamSource = stream;
@@ -221,7 +208,7 @@ namespace RunCat365
 
         internal void ShowBalloonTip(BalloonTipType balloonTipType)
         {
-            var info = balloonTipType.GetInfo();
+            BalloonTipInfo info = balloonTipType.GetInfo();
             taskbarIcon.ShowBalloonTip(info.Title, info.Text, BalloonIcon.Info);
         }
 

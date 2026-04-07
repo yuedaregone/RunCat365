@@ -1,26 +1,26 @@
-// Copyright 2025 Takuto Nakamura
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
 using System.Reflection;
+using System.Windows;
 using System.Windows.Media.Imaging;
 
 namespace RunCat365
 {
     internal static class ResourceLoader
     {
-        private static readonly Dictionary<string, BitmapImage> cache = [];
-        internal static readonly Assembly Assembly = typeof(ResourceLoader).Assembly;
+        private static readonly Assembly assembly = typeof(ResourceLoader).Assembly;
+        private static readonly Dictionary<string, BitmapImage> bitmapCache = new();
+        private static readonly Dictionary<string, WriteableBitmap> spritesheetCache = new();
+        private static readonly HashSet<string> availableResources = new();
+
+        internal static Assembly Assembly => assembly;
+
+        static ResourceLoader()
+        {
+            var resourceNames = assembly.GetManifestResourceNames();
+            foreach (var name in resourceNames)
+            {
+                availableResources.Add(name);
+            }
+        }
 
         internal static byte[]? GetRunnerPixels(string runnerName, int frameIndex, out int width, out int height)
         {
@@ -28,7 +28,7 @@ namespace RunCat365
             height = 0;
             var key = $"{runnerName.ToLower()}_{frameIndex}";
 
-            if (cache.TryGetValue(key, out var cached))
+            if (bitmapCache.TryGetValue(key, out var cached))
             {
                 width = cached.PixelWidth;
                 height = cached.PixelHeight;
@@ -38,14 +38,12 @@ namespace RunCat365
                 return pixels;
             }
 
-            var resourceNames = Assembly.GetManifestResourceNames();
-            var resourceName = resourceNames.FirstOrDefault(n => n.EndsWith($".{runnerName.ToLower()}_{frameIndex}.png", StringComparison.OrdinalIgnoreCase));
-
+            var resourceName = FindResourceName(runnerName.ToLower(), frameIndex);
             if (resourceName is null) return null;
 
             try
             {
-                using var stream = Assembly.GetManifestResourceStream(resourceName);
+                using var stream = assembly.GetManifestResourceStream(resourceName);
                 if (stream is null) return null;
 
                 var image = new BitmapImage();
@@ -62,13 +60,72 @@ namespace RunCat365
                 var pixels = new byte[stride * height];
                 image.CopyPixels(pixels, stride, 0);
 
-                cache[key] = image;
+                bitmapCache[key] = image;
                 return pixels;
             }
             catch
             {
                 return null;
             }
+        }
+
+        internal static WriteableBitmap? GetCachedSpritesheet(string runnerName, int frameCount)
+        {
+            var cacheKey = $"spritesheet_{runnerName.ToLower()}";
+
+            if (spritesheetCache.TryGetValue(cacheKey, out var cached))
+            {
+                return cached;
+            }
+
+            int maxWidth = 0;
+            int maxHeight = 0;
+            var frameData = new List<(byte[] pixels, int w, int h)>();
+
+            for (int i = 0; i < frameCount; i++)
+            {
+                var pixels = GetRunnerPixels(runnerName, i, out var w, out var h);
+                if (pixels is null) continue;
+                frameData.Add((pixels, w, h));
+                if (w > maxWidth) maxWidth = w;
+                if (h > maxHeight) maxHeight = h;
+            }
+
+            if (frameData.Count == 0 || maxWidth == 0 || maxHeight == 0)
+            {
+                return null;
+            }
+
+            var spritesheet = new WriteableBitmap(
+                frameCount * maxWidth, maxHeight, 96, 96,
+                System.Windows.Media.PixelFormats.Bgra32, null);
+
+            for (int i = 0; i < frameData.Count; i++)
+            {
+                var (pixels, w, h) = frameData[i];
+                int offsetX = (maxWidth - w) / 2;
+                int offsetY = (maxHeight - h) / 2;
+
+                var rect = new Int32Rect(i * maxWidth + offsetX, offsetY, w, h);
+                spritesheet.WritePixels(rect, pixels, w * 4, 0);
+            }
+
+            spritesheet.Freeze();
+            spritesheetCache[cacheKey] = spritesheet;
+            return spritesheet;
+        }
+
+        private static string? FindResourceName(string runnerName, int frameIndex)
+        {
+            var suffix = $".{runnerName}_{frameIndex}.png";
+            foreach (var name in availableResources)
+            {
+                if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return name;
+                }
+            }
+            return null;
         }
     }
 }

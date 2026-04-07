@@ -1,17 +1,3 @@
-// Copyright 2025 Takuto Nakamura
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,33 +5,32 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
-using RunCat365.Properties;
 
 namespace RunCat365
 {
     public partial class FloatingWindow : Window
     {
-        private readonly WpfRectangle _rectangle;
-        private readonly ImageBrush _brush;
-        private readonly Canvas _canvas;
-        private readonly DispatcherTimer _moveTimer;
-        private BitmapSource? _spritesheet;
-        private int _frameWidth = 48;
-        private int _frameHeight = 48;
-        private bool _userPositioned;
-
-        private float _currentSpeed;
+        private readonly WpfRectangle rectangle;
+        private readonly ImageBrush brush;
+        private readonly Canvas canvas;
+        private readonly DispatcherTimer moveTimer;
+        private readonly AppConfig config;
+        private BitmapSource? spritesheet;
+        private int frameWidth = 48;
+        private int frameHeight = 48;
+        private bool userPositioned;
+        private float currentSpeed;
 
         public void SetSpeed(object? sender, float speed)
         {
-            _currentSpeed = speed;
+            currentSpeed = speed;
         }
 
         private void OnMoveTimer(object? sender, EventArgs e)
         {
-            if (_currentSpeed <= 0) return;
+            if (currentSpeed <= 0) return;
 
-            Left += _currentSpeed;
+            Left += currentSpeed;
 
             double screenWidth = SystemParameters.PrimaryScreenWidth;
             if (Left > screenWidth)
@@ -58,17 +43,19 @@ namespace RunCat365
             }
         }
 
-        public FloatingWindow()
+        public FloatingWindow(AppConfig config)
         {
-            _moveTimer = new DispatcherTimer
+            this.config = config;
+
+            moveTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(16)
             };
-            _moveTimer.Tick += OnMoveTimer;
+            moveTimer.Tick += OnMoveTimer;
 
             InitializeComponent();
 
-            _brush = new ImageBrush
+            brush = new ImageBrush
             {
                 Stretch = Stretch.None,
                 AlignmentX = AlignmentX.Left,
@@ -76,36 +63,36 @@ namespace RunCat365
                 TileMode = TileMode.None
             };
 
-            _rectangle = new WpfRectangle
+            rectangle = new WpfRectangle
             {
-                Fill = _brush,
+                Fill = brush,
                 Width = 48,
                 Height = 48
             };
 
-            _canvas = new Canvas();
-            _canvas.Children.Add(_rectangle);
-            _canvas.Width = 48;
-            _canvas.Height = 48;
+            canvas = new Canvas();
+            canvas.Children.Add(rectangle);
+            canvas.Width = 48;
+            canvas.Height = 48;
 
-            var grid = new Grid();
-            grid.Children.Add(_canvas);
+            Grid grid = new Grid();
+            grid.Children.Add(canvas);
             Content = grid;
         }
 
         public void StartMoveTimer()
         {
-            _moveTimer.Start();
+            moveTimer.Start();
         }
 
         public void StopMoveTimer()
         {
-            _moveTimer.Stop();
+            moveTimer.Stop();
         }
 
         private void SetDefaultPosition()
         {
-            var workArea = SystemParameters.WorkArea;
+            Rect workArea = SystemParameters.WorkArea;
             double screenWidth = SystemParameters.PrimaryScreenWidth;
             double screenHeight = SystemParameters.PrimaryScreenHeight;
 
@@ -132,24 +119,24 @@ namespace RunCat365
 
         public void LoadSpritesheet(BitmapSource spritesheet, int frameWidth, int frameHeight)
         {
-            _spritesheet = spritesheet;
-            _frameWidth = frameWidth;
-            _frameHeight = frameHeight;
+            this.spritesheet = spritesheet;
+            this.frameWidth = frameWidth;
+            this.frameHeight = frameHeight;
 
-            _brush.ImageSource = spritesheet;
-            _brush.Viewbox = new Rect(0, 0, frameWidth, frameHeight);
-            _brush.ViewboxUnits = BrushMappingMode.Absolute;
+            brush.ImageSource = spritesheet;
+            brush.Viewbox = new Rect(0, 0, frameWidth, frameHeight);
+            brush.ViewboxUnits = BrushMappingMode.Absolute;
 
-            _rectangle.Width = frameWidth;
-            _rectangle.Height = frameHeight;
+            rectangle.Width = frameWidth;
+            rectangle.Height = frameHeight;
 
-            _canvas.Width = frameWidth;
-            _canvas.Height = frameHeight;
+            canvas.Width = frameWidth;
+            canvas.Height = frameHeight;
 
             Width = frameWidth;
             Height = frameHeight;
 
-            if (!_userPositioned)
+            if (!userPositioned)
             {
                 SetDefaultPosition();
             }
@@ -157,42 +144,42 @@ namespace RunCat365
 
         public void SetFrame(int index)
         {
-            if (_spritesheet is null) return;
+            if (spritesheet is null) return;
 
-            double x = index * _frameWidth;
-            _brush.Viewbox = new Rect(x, 0, _frameWidth, _frameHeight);
+            double x = index * frameWidth;
+            brush.Viewbox = new Rect(x, 0, frameWidth, frameHeight);
         }
 
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
-            _userPositioned = true;
+            userPositioned = true;
             DragMove();
             SavePosition();
         }
 
         private void SavePosition()
         {
-            UserSettings.Default.WindowLeft = Left;
-            UserSettings.Default.WindowTop = Top;
-            UserSettings.Default.Save();
+            config.WindowLeft = Left;
+            config.WindowTop = Top;
+            config.Save();
         }
 
         public void RestorePosition()
         {
-            double savedLeft = UserSettings.Default.WindowLeft;
-            double savedTop = UserSettings.Default.WindowTop;
+            double savedLeft = config.WindowLeft;
+            double savedTop = config.WindowTop;
 
             if (savedLeft != 0 || savedTop != 0)
             {
                 Left = savedLeft;
                 Top = savedTop;
-                _userPositioned = true;
+                userPositioned = true;
             }
             else
             {
                 SetDefaultPosition();
-                _userPositioned = false;
+                userPositioned = false;
             }
         }
     }

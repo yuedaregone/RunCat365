@@ -1,64 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!-- 
-    Microsoft ResX Schema 
-    
-    Version 2.0
-    
-    The primary goals of this format is to allow a simple XML format 
-    that is mostly human readable. The generation and parsing of the 
-    various data types are done through the TypeConverter classes 
-    associated with the data types.
-    
-    Example:
-    
-    ... ado.net/XML headers & schema ...
-    <resheader name="resmimetype">text/microsoft-resx</resheader>
-    <resheader name="version">2.0</resheader>
-    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
-    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
-    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-        <value>[base64 mime encoded serialized .NET Framework object]</value>
-    </data>
-    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-        <comment>This is a comment</comment>
-    </data>
-                
-    There are any number of "resheader" rows that contain simple 
-    name/value pairs.
-    
-    Each data row contains a name, and value. The row also contains a 
-    type or mimetype. Type corresponds to a .NET class that support 
-    text/value conversion through the TypeConverter architecture. 
-    Classes that don't support this are serialized and stored with the 
-    mimetype set.
-    
-    The mimetype is used for serialized objects, and tells the 
-    ResXResourceReader how to depersist the object. This is currently not 
-    extensible. For a given mimetype the value must be set accordingly:
-    
-    Note - application/x-microsoft.net.object.binary.base64 is the format 
-    that the ResXResourceWriter will generate, however the reader can 
-    read any of the formats listed below.
-    
-    mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with 
-            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
-            : and then encoded with base64 encoding.
-    
-    mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with 
-            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array 
-            : using a System.ComponentModel.TypeConverter
-            : and then encoded with base64 encoding.
-    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -120,38 +61,23 @@
   <data name="Menu_Runner" xml:space="preserve">
     <value>跑步者</value>
   </data>
-  <data name="Menu_Theme" xml:space="preserve">
-    <value>主题</value>
-  </data>
-  <data name="Menu_FPSMaxLimit" xml:space="preserve">
-    <value>FPS 最大限制</value>
-  </data>
   <data name="Menu_LaunchAtStartup" xml:space="preserve">
     <value>跟随 Windows 启动</value>
   </data>
   <data name="Menu_Settings" xml:space="preserve">
     <value>设置</value>
   </data>
-  <data name="Menu_EndlessGame" xml:space="preserve">
-    <value>无尽游戏</value>
-  </data>
-  <data name="Menu_Information" xml:space="preserve">
-    <value>信息</value>
-  </data>
-  <data name="Menu_OpenRepository" xml:space="preserve">
-    <value>打开存储库</value>
-  </data>
   <data name="Menu_Exit" xml:space="preserve">
     <value>退出</value>
   </data>
-  <data name="Theme_System" xml:space="preserve">
-    <value>系统</value>
+  <data name="Message_AppLaunched" xml:space="preserve">
+    <value>应用已启动。如果图标不在任务栏上，则表示该应用已被省略，请手动移动并将其固定。</value>
   </data>
-  <data name="Theme_Light" xml:space="preserve">
-    <value>浅色</value>
+  <data name="Message_Warning" xml:space="preserve">
+    <value>警告</value>
   </data>
-  <data name="Theme_Dark" xml:space="preserve">
-    <value>深色</value>
+  <data name="SystemInfo_TomatoClock" xml:space="preserve">
+    <value>番茄钟</value>
   </data>
   <data name="Runner_Cat" xml:space="preserve">
     <value>猫咪</value>
@@ -161,80 +87,5 @@
   </data>
   <data name="Runner_Horse" xml:space="preserve">
     <value>马</value>
-  </data>
-  <data name="Message_AppLaunched" xml:space="preserve">
-    <value>应用已启动。如果图标不在任务栏上，则表示该应用已被省略，请手动移动并将其固定。</value>
-  </data>
-  <data name="Message_Warning" xml:space="preserve">
-    <value>警告</value>
-  </data>
-  <data name="Window_EndlessGame" xml:space="preserve">
-    <value>无尽游戏</value>
-  </data>
-  <data name="Game_PressSpaceToPlay" xml:space="preserve">
-    <value>按空格键开始。</value>
-  </data>
-  <data name="Game_GameOver" xml:space="preserve">
-    <value>游戏结束</value>
-  </data>
-  <data name="SystemInfo_CPU" xml:space="preserve">
-    <value>CPU</value>
-  </data>
-  <data name="SystemInfo_User" xml:space="preserve">
-    <value>用户</value>
-  </data>
-  <data name="SystemInfo_Kernel" xml:space="preserve">
-    <value>内核</value>
-  </data>
-  <data name="SystemInfo_Available" xml:space="preserve">
-    <value>可用</value>
-  </data>
-  <data name="SystemInfo_GPU" xml:space="preserve">
-    <value>GPU</value>
-  </data>
-  <data name="SystemInfo_Average" xml:space="preserve">
-    <value>平均</value>
-  </data>
-  <data name="SystemInfo_Maximum" xml:space="preserve">
-    <value>最大</value>
-  </data>
-  <data name="SystemInfo_Memory" xml:space="preserve">
-    <value>内存</value>
-  </data>
-  <data name="SystemInfo_Total" xml:space="preserve">
-    <value>总计</value>
-  </data>
-  <data name="SystemInfo_Used" xml:space="preserve">
-    <value>已使用</value>
-  </data>
-  <data name="SystemInfo_Storage" xml:space="preserve">
-    <value>存储</value>
-  </data>
-  <data name="SystemInfo_DriveC" xml:space="preserve">
-    <value>C 盘</value>
-  </data>
-  <data name="SystemInfo_DriveD" xml:space="preserve">
-    <value>D 盘</value>
-  </data>
-  <data name="SystemInfo_Network" xml:space="preserve">
-    <value>网络</value>
-  </data>
-  <data name="SystemInfo_TomatoClock" xml:space="preserve">
-    <value>番茄钟</value>
-  </data>
-  <data name="SystemInfo_Sent" xml:space="preserve">
-    <value>发送</value>
-  </data>
-  <data name="SystemInfo_Received" xml:space="preserve">
-    <value>已接收</value>
-  </data>
-  <data name="Message_CPUUsageUnavailable" xml:space="preserve">
-    <value>获取 CPU 使用率失败。无法更新运行速度。</value>
-  </data>
-  <data name="Menu_SpeedSource" xml:space="preserve">
-    <value>速度来源</value>
-  </data>
-  <data name="Game_NewRecord" xml:space="preserve">
-    <value>新纪录</value>
   </data>
 </root>

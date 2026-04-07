@@ -1,32 +1,18 @@
-// Copyright 2025 Takuto Nakamura
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
 using System.IO;
 
 namespace RunCat365
 {
     internal class LaunchAtStartupManager
     {
-        private readonly string _shortcutPath;
+        private readonly string shortcutPath;
 
         public LaunchAtStartupManager()
         {
-            var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-            _shortcutPath = Path.Combine(startupFolder, "RunCat 365.lnk");
+            string startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+            shortcutPath = Path.Combine(startupFolder, "RunCat 365.lnk");
         }
 
-        public bool GetStartup() => File.Exists(_shortcutPath);
+        public bool GetStartup() => File.Exists(shortcutPath);
 
         public bool SetStartup(bool enabled)
         {
@@ -34,7 +20,7 @@ namespace RunCat365
             {
                 if (enabled)
                 {
-                    if (!File.Exists(_shortcutPath))
+                    if (!File.Exists(shortcutPath))
                     {
                         return CreateShortcut();
                     }
@@ -42,9 +28,9 @@ namespace RunCat365
                 }
                 else
                 {
-                    if (File.Exists(_shortcutPath))
+                    if (File.Exists(shortcutPath))
                     {
-                        File.Delete(_shortcutPath);
+                        File.Delete(shortcutPath);
                     }
                     return true;
                 }
@@ -57,13 +43,13 @@ namespace RunCat365
 
         private bool CreateShortcut()
         {
-            var exePath = Environment.ProcessPath;
+            string? exePath = Environment.ProcessPath;
             if (exePath is null) return false;
 
             try
             {
                 dynamic wsh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!)!;
-                dynamic shortcut = wsh.CreateShortcut(_shortcutPath)!;
+                dynamic shortcut = wsh.CreateShortcut(shortcutPath)!;
                 shortcut.TargetPath = exePath;
                 shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
                 shortcut.Description = "RunCat 365";
