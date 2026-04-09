@@ -74,7 +74,7 @@ namespace RunCat365
 
             var easedProgress = ApplyEasing(progress);
             intervalMs = 500 - (easedProgress * 475);
-            float speed = (float)(maxSpeed * easedProgress);
+            float speed = (float)(maxSpeed * easedProgress * (200.0 / Math.Max(intervalMs, 25)));
 
             animationTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(intervalMs, 25));
 

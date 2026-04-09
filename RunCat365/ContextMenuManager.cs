@@ -79,8 +79,24 @@ namespace RunCat365
             int[] durations = new[] { 15, 20, 25, 30, 45, 60 };
             foreach (int duration in durations)
             {
-                MenuItem durationItem = CreateMenuItem($"{duration} min");
-                durationItem.Click += (sender, e) => setTomatoClockDuration(duration);
+                MenuItem durationItem = new MenuItem
+                {
+                    Header = $"{duration} min",
+                    IsCheckable = true,
+                    IsChecked = getTomatoClockDuration() == duration,
+                    FontFamily = menuFont,
+                    FontSize = MenuFontSize,
+                    Tag = duration
+                };
+                durationItem.Click += (sender, e) =>
+                {
+                    foreach (MenuItem childItem in tomatoClockDurationMenu.Items)
+                    {
+                        childItem.IsChecked = false;
+                    }
+                    durationItem.IsChecked = true;
+                    setTomatoClockDuration(duration);
+                };
                 tomatoClockDurationMenu.Items.Add(durationItem);
             }
 
